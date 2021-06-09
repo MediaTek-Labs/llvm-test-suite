@@ -15,16 +15,13 @@ set(Source
   flops-8.c
   flops.c
   fp-convert.c
-  himenobmtxpa.c
   lowercase.c
   mandel-2.c
   matmul_f64_4x4.c
-  oourafft.c
   perlin.c
   pi.c
   revertBits.c
   richards_benchmark.c
   salsa20.c
-  whetstone.c
 )
 llvm_singlesource()
