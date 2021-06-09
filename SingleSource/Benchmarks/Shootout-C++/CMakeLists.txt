@@ -8,8 +8,6 @@ set(Source
   ary2.cpp
   ary3.cpp
   fibo.cpp
-  hash.cpp
-  hash2.cpp
   heapsort.cpp
   lists.cpp
   lists1.cpp
