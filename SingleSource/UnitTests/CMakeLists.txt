@@ -52,12 +52,6 @@ if(NOT ARCH STREQUAL "x86")
   )
 endif()
 
-# Enable matrix types extension tests for compilers supporting -fenable-matrix.
-check_c_compiler_flag(-fenable-matrix COMPILER_HAS_MATRIX_FLAG)
-if (COMPILER_HAS_MATRIX_FLAG)
-  set_property(SOURCE matrix-types-spec.cpp PROPERTY COMPILE_FLAGS -fenable-matrix)
-else()
-  list(REMOVE_ITEM Source matrix-types-spec.cpp)
-endif()
+list(REMOVE_ITEM Source matrix-types-spec.cpp)
 
 llvm_singlesource()
