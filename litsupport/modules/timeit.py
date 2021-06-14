@@ -36,6 +36,9 @@ def _mutateCommandLine(context, commandline):
                 stderr = os.path.join(workdir, stderr)
             args += ["--redirect-stderr", stderr]
             cmd.stderr = None
+        outfile = context.tmpBase + ".out"
+        args += ["--append-exitstatus"]
+        args += ["--redirect-output", outfile]
     else:
         if cmd.stdout is not None or cmd.stderr is not None:
             raise Exception("Separate stdout/stderr redirection not " +
