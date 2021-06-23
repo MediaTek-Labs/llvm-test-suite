@@ -630,7 +630,7 @@ int Cdecl main(int cpchArgc, char **ppchArgv) {
     if (cpchArgc == 3)
 	cchMinLength = atoi(ppchArgv[2]);
 
-    fInteractive = isatty(1);
+    fInteractive = 0;
 
     ReadDict(ppchArgv[1]);
 
