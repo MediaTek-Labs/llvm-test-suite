@@ -1,4 +1,3 @@
-add_subdirectory(city)
 add_subdirectory(employ)
 add_subdirectory(life)
 add_subdirectory(ocean)
