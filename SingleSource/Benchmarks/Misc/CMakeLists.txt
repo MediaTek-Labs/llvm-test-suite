@@ -1,4 +1,5 @@
 list(APPEND LDFLAGS -lm )
+list(APPEND LDFLAGS "-Wl,--whole-archive -lstubs -Wl,--no-whole-archive")
 set(FP_TOLERANCE 0.001)
 set(Source
   ReedSolomon.c
@@ -17,10 +18,12 @@ set(Source
   lowercase.c
   mandel-2.c
   matmul_f64_4x4.c
+  oourafft.c
   perlin.c
   pi.c
   revertBits.c
   richards_benchmark.c
   salsa20.c
+  whetstone.c
 )
 llvm_singlesource()

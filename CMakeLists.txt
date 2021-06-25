@@ -303,6 +303,16 @@ if (TEST_SUITE_USER_MODE_EMULATION)
   set(FPCMP ${CMAKE_BINARY_DIR}/tools/fpcmp)
 endif()
 
+list(APPEND LDFLAGS "-L${CMAKE_CURRENT_BINARY_DIR}")
+add_library(stubs STATIC libstubs.c)
+add_dependencies(stubs
+  build-HashProgramOutput.sh
+  build-timeit
+  build-timeit-target
+  build-fpcmp
+  build-fpcmp-target
+)
+
 option(TEST_SUITE_COLLECT_COMPILE_TIME
        "Measure compile time by wrapping compiler invocations in timeit" ON)
 if(TEST_SUITE_COLLECT_COMPILE_TIME)

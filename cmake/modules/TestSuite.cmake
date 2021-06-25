@@ -102,6 +102,7 @@ function(test_suite_add_build_dependencies target)
     build-timeit-target
     build-fpcmp
     build-fpcmp-target
+    stubs
   )
 endfunction()
 
