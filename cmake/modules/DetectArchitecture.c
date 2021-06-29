@@ -4,8 +4,10 @@ const char *str = "ARCHITECTURE IS AArch64";
 const char *str = "ARCHITECTURE IS ARM";
 #elif defined(__alpha__)
 const char *str = "ARCHITECTURE IS Alpha";
-#elif defined(__mips__)
+#elif defined(__mips__) && !defined(__nanomips__)
 const char *str = "ARCHITECTURE IS Mips";
+#elif defined(__nanomips__)
+const char *str = "ARCHITECTURE IS nanoMIPS";
 #elif defined(__powerpc__) || defined(__ppc__) || defined(__power__)
 const char *str = "ARCHITECTURE IS PowerPC";
 #elif defined(__riscv)

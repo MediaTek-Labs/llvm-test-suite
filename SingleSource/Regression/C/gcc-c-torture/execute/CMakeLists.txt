@@ -244,6 +244,24 @@ if(ARCH MATCHES "Mips")
   list(APPEND TestsToSkip ${MipsTestsToSkip})
 endif()
 
+# nanoMIPS Test Blacklist
+if(ARCH MATCHES "nanoMIPS")
+  file(GLOB MipsTestsToSkip CONFIGURE_DEPENDS
+    # No backend support for __builtin_longjmp/__builtin_setjmp
+    built-in-setjmp.c
+    pr84521.c
+    # Triggers "return address can be determined only for current frame"
+    20030323-1.c
+    # These test cases compiled very long due PR43263.
+    pr20621-1.c
+    pr23135.c
+    pr28982b.c
+    pr84748.c
+  )
+
+  list(APPEND TestsToSkip ${MipsTestsToSkip})
+endif()
+
 # RISC-V Test Blacklist
 if(ARCH MATCHES "riscv")
   file(GLOB RISCVTestsToSkip CONFIGURE_DEPENDS

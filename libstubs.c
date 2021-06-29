@@ -4,6 +4,7 @@
 #include <sys/unistd.h>
 #include <errno.h>
 #include <string.h>
+#include <sys/times.h>
 
 int gettimeofday (struct timeval * restrict tp,  void * restrict tzvp)
 {
@@ -30,3 +31,9 @@ int gettimeofday (struct timeval * restrict tp,  void * restrict tzvp)
 
   return 0;
 }
+
+clock_t times(struct tms *buf)
+{
+  return 0;
+}
+

@@ -1,5 +1,12 @@
 add_subdirectory(Large)
 
+file(GLOB Source RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.c *.cpp)
+
+if(ARCH STREQUAL "nanoMIPS")
+  list(APPEND LDFLAGS "-Wl,--whole-archive -lstubs -Wl,--no-whole-archive")
+  list(REMOVE_ITEM Source stepanov_v1p2.cpp)
+endif()
+
 list(APPEND LDFLAGS -lm)
 set(FP_ABSTOLERANCE 0.01)
 llvm_singlesource()
