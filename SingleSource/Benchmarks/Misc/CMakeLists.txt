@@ -17,6 +17,7 @@ set(Source
   fp-convert.c
   lowercase.c
   mandel-2.c
+  mandel.c
   matmul_f64_4x4.c
   oourafft.c
   perlin.c
@@ -26,4 +27,10 @@ set(Source
   salsa20.c
   whetstone.c
 )
+if(NOT ARCH STREQUAL "PowerPC" OR NOT TARGET_OS STREQUAL "Darwin")
+  list(APPEND Source dt.c)
+endif()
+if (ARCH STREQUAL "nanoMIPS")
+  list(REMOVE_ITEM Source mandel.c)
+endif()
 llvm_singlesource()
