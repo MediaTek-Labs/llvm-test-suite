@@ -1,4 +1,6 @@
-add_subdirectory(Large)
+if(NOT ARCH STREQUAL "nanoMIPS")
+  add_subdirectory(Large)
+endif()
 
 file(GLOB Source RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.c *.cpp)
 
