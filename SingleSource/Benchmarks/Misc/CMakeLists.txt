@@ -1,5 +1,4 @@
 list(APPEND LDFLAGS -lm )
-list(APPEND LDFLAGS "-Wl,--whole-archive -lstubs -Wl,--no-whole-archive")
 set(FP_TOLERANCE 0.001)
 set(Source
   ReedSolomon.c
@@ -33,6 +32,7 @@ if(NOT ARCH STREQUAL "PowerPC" OR NOT TARGET_OS STREQUAL "Darwin")
   list(APPEND Source dt.c)
 endif()
 if (ARCH STREQUAL "nanoMIPS")
+  list(APPEND LDFLAGS "-Wl,--whole-archive -lstubs -Wl,--no-whole-archive")
   list(REMOVE_ITEM Source dt.c mandel.c)
 endif()
 llvm_singlesource()
