@@ -1,3 +1,6 @@
+if(NOT ARCH STREQUAL "nanoMIPS")
+  add_subdirectory(city)
+endif()
 add_subdirectory(employ)
 add_subdirectory(life)
 add_subdirectory(ocean)

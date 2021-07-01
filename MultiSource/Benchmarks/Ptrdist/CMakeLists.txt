@@ -1,3 +1,7 @@
 add_subdirectory(anagram)
+if(NOT ARCH STREQUAL "nanoMIPS")
+  add_subdirectory(bc)
+  add_subdirectory(ft)
+endif()
 add_subdirectory(ks)
 add_subdirectory(yacr2)
