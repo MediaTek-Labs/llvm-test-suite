@@ -5,5 +5,10 @@ if(ARCH MATCHES "x86" OR ARCH MATCHES "riscv" OR
   add_subdirectory(gcc-c-torture)
 endif()
 
+file(GLOB Source RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.c)
+if(ARCH STREQUAL "nanoMIPS")
+  list(REMOVE_ITEM Source uint64_to_float.c)
+endif()
+
 list(APPEND LDFLAGS -lm)
 llvm_singlesource(PREFIX "Regression-C-")
