@@ -37,3 +37,10 @@ clock_t times(struct tms *buf)
   return 0;
 }
 
+int ffsl(long n)
+{
+  for (int i = 0; i < sizeof(long); i++)
+    if ((n & (1 << i)) == 1)
+      return i + 1;
+  return 0;
+}
