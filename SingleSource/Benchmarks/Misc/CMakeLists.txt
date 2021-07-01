@@ -14,7 +14,9 @@ set(Source
   flops-6.c
   flops-7.c
   flops-8.c
+  flops.c
   fp-convert.c
+  himenobmtxpa.c
   lowercase.c
   mandel-2.c
   mandel.c
