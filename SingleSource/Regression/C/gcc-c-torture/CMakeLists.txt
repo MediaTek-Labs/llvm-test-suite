@@ -52,8 +52,9 @@ function(gcc_torture_execute_test File)
   # Add any flags that were requested
   list(APPEND CFLAGS ${DG_CFLAGS} ${_TORTURE_CFLAGS})
   list(APPEND LDFLAGS ${_TORTURE_LDFLAGS})
-  list(APPEND LDFLAGS "-lm")
-  list(APPEND LDFLAGS "-Wl,--relax")
+  if(ARCH STREQUAL "nanoMIPS")
+    list(APPEND LDFLAGS "-lm")
+  endif()
 
   llvm_test_executable_no_test(${_target} ${File})
   llvm_test_run()
