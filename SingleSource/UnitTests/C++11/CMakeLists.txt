@@ -6,4 +6,8 @@ if(${CMAKE_EXE_LINKER_FLAGS} MATCHES "-static")
 	list(APPEND LDFLAGS -Wl,--whole-archive -lpthread -Wl,--no-whole-archive)
 endif()
 
+if(ARCH STREQUAL "nanoMIPS")
+  list(REMOVE_ITEM Source stdthreadbug.cpp)
+endif()
+
 llvm_singlesource()

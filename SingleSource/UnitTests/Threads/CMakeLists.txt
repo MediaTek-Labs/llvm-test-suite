@@ -1,5 +1,5 @@
 # XCore and older Darwin version do not support thread local storage
-if(NOT ARCH STREQUAL "XCore" AND NOT ARCH STREQUAL "Darwin")
+if(NOT ARCH STREQUAL "XCore" AND NOT ARCH STREQUAL "Darwin" AND NOT ARCH STREQUAL "nanoMIPS")
   list(APPEND LDFLAGS -pthread)
   list(APPEND CFLAGS -pthread)
   llvm_singlesource()
