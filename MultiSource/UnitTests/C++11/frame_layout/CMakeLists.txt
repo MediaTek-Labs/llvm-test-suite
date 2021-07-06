@@ -1,2 +1,4 @@
 list(APPEND CXXFLAGS -std=c++11)
-llvm_multisource(frame_layout)
+if(NOT ARCH STREQUAL "nanoMIPS")
+  llvm_multisource(frame_layout)
+endif()
