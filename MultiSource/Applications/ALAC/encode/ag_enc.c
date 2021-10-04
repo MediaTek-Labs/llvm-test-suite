@@ -54,7 +54,7 @@
 #define ALWAYS_INLINE
 #endif
 
-#ifdef __XS1B__
+#if defined(__XS1B__) || defined(__nanomips__)
 #define UNALIGNED_MEM_ACCESS_NOT_SUPPORTED
 #endif
 
