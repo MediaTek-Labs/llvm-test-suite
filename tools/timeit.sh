@@ -29,11 +29,21 @@ while [[ $1 = -* ]]; do
   shift 2
 done
 
+perf=$( which perf )
+
 if [ "$OUTPUT" = "$ERRPUT" ]; then
   # Use >& to ensure the streams are properly interleaved.
-  perf stat -o $PERFSTAT $@ < $INPUT >& $OUTPUT
+  if [ -z $perf ]; then
+    $@ < $INPUT >& $OUTPUT
+  else
+    perf stat -o $PERFSTAT $@ < $INPUT >& $OUTPUT
+  fi
 else
-  perf stat -o $PERFSTAT $@ < $INPUT > $OUTPUT 2> $ERRPUT
+  if [ -z $perf ]; then
+    $@ < $INPUT > $OUTPUT 2> $ERRPUT
+  else
+    perf stat -o $PERFSTAT $@ < $INPUT > $OUTPUT 2> $ERRPUT
+  fi
 fi
 
 EXITCODE=$?
