@@ -102,6 +102,7 @@ macro (speccpu2017_benchmark)
     # Create benchmark working directories.
     foreach (_run_type IN LISTS TEST_SUITE_RUN_TYPE)
       set(RUN_${_run_type}_DIR "${CMAKE_CURRENT_BINARY_DIR}/run_${_run_type}")
+      set(RUN_${_run_type}_DIR_REL "%S/run_${_run_type}")
       file(MAKE_DIRECTORY ${RUN_${_run_type}_DIR})
     endforeach ()
 
@@ -158,6 +159,8 @@ macro (speccpu2017_benchmark)
       list(APPEND SPEC_COMMON_DEFS "-DSPEC_LINUX_AARCH64")
     elseif (ARCH STREQUAL "x86" AND TARGET_OS STREQUAL "Windows")
       # Windows x86/x64
+    elseif (TARGET_OS STREQUAL "Darwin")
+      add_definitions(-DSPEC_MACOSX)
     else ()
       message("ARCH: ${ARCH}")
       message("TARGET_OS: ${TARGET_OS}")
@@ -205,12 +208,6 @@ endmacro ()
 # SUITE_TYPE (rate or speed)
 #            Only run in the _r or _s benchmark suites.
 #
-# WORKDIR    Working dir for the executable to run in.
-#            "input" means the dataset source directory. Does not require
-#                    copying the input data to the rundir, but the benchmark
-#                    must not write data there.
-#            If not defined, the run_{run_type} directory is chosen.
-#
 # STDOUT     Write the benchmark's stdout into this file in the rundir.
 #
 # STDERR     Write the benchmark's stderr into this file in the rundir.
@@ -218,7 +215,7 @@ endmacro ()
 # ARGN       Benchmark's command line arguments
 macro (speccpu2017_run_test)
   cmake_parse_arguments(_arg
-    "" "RUN_TYPE;SUITE_TYPE;WORKDIR;STDOUT;STDERR" "" ${ARGN})
+    "" "RUN_TYPE;SUITE_TYPE;STDOUT;STDERR" "" ${ARGN})
 
   if ((NOT DEFINED _arg_SUITE_TYPE) OR
       (BENCHMARK_SUITE_TYPE IN_LIST _arg_SUITE_TYPE))
@@ -227,33 +224,24 @@ macro (speccpu2017_run_test)
 
       set(_stdout)
       if (DEFINED _arg_STDOUT)
-        set(_stdout > "${RUN_${_arg_RUN_TYPE}_DIR}/${_arg_STDOUT}")
+        set(_stdout > "${RUN_${_arg_RUN_TYPE}_DIR_REL}/${_arg_STDOUT}")
       endif ()
 
       set(_stderr)
       if (DEFINED _arg_STDERR)
-        set(_stderr 2> "${RUN_${_arg_RUN_TYPE}_DIR}/${_arg_STDERR}")
+        set(_stderr 2> "${RUN_${_arg_RUN_TYPE}_DIR_REL}/${_arg_STDERR}")
       endif ()
 
-      set(_executable)
-      if (NOT DEFINED _arg_WORKDIR)
-        set(_workdir "${RUN_${_arg_RUN_TYPE}_DIR}")
-
-        # perlbench, xalancbmk need to be invoked with relative paths
-        # (SPEC made modifications that prepend another path to find the rundir)
-        file(RELATIVE_PATH _executable
-          "${_workdir}" "${CMAKE_CURRENT_BINARY_DIR}/${PROG}")
-        set (_executable EXECUTABLE "${_executable}")
-      elseif (_arg_WORKDIR STREQUAL "input")
-        set(_workdir "${INPUT_${_arg_RUN_TYPE}_DIR}")
-      else ()
-        set(_workdir "${_arg_WORKDIR}")
-      endif ()
+      # perlbench, xalancbmk need to be invoked with relative paths
+      # (SPEC made modifications that prepend another path to find the rundir)
+      file(RELATIVE_PATH _executable
+          "${RUN_${_arg_RUN_TYPE}_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/${PROG}")
+      set (_executable EXECUTABLE "${_executable}")
 
       llvm_test_run(
         ${_arg_UNPARSED_ARGUMENTS} ${_stdout} ${_stderr}
         RUN_TYPE ${_arg_RUN_TYPE}
-        WORKDIR "${_workdir}"
+        WORKDIR "${RUN_${_arg_RUN_TYPE}_DIR_REL}"
         ${_executable}
       )
     endif ()
@@ -272,17 +260,18 @@ macro(speccpu2017_validate_image _imgfile _cmpfile _outfile)
     add_executable(${VALIDATOR} ${_validator_sources})
     target_link_libraries(${VALIDATOR} m)
     set_target_properties(${VALIDATOR} PROPERTIES COMPILE_FLAGS "-DSPEC")
-    add_dependencies(${VALIDATOR} timeit-target)
+    add_dependencies(${VALIDATOR} build-timeit)
+    add_dependencies(${VALIDATOR} build-timeit-target)
   endif ()
 
   if ((NOT DEFINED _carg_SUITE_TYPE) OR (${BENCHMARK_SUITE_TYPE} IN_LIST _carg_SUITE_TYPE))
     get_filename_component(_basename "${_imgfile}" NAME_WE)
     get_filename_component(_ext "${_imgfile}" EXT)
     llvm_test_verify(
-      cd "${RUN_${_carg_RUN_TYPE}_DIR}" &&
-      "${CMAKE_CURRENT_BINARY_DIR}/${VALIDATOR}" ${_carg_UNPARSED_ARGUMENTS}
-        "${_imgfile}" "${DATA_${_carg_RUN_TYPE}_DIR}/compare/${_cmpfile}"
-        > ${RUN_${_carg_RUN_TYPE}_DIR}/${_outfile}
+      cd "${RUN_${_carg_RUN_TYPE}_DIR_REL}" &&
+      "%S/${VALIDATOR}" ${_carg_UNPARSED_ARGUMENTS}
+        "${_imgfile}" "${RUN_${_carg_RUN_TYPE}_DIR_REL}/compare/${_cmpfile}"
+        > ${RUN_${_carg_RUN_TYPE}_DIR_REL}/${_outfile}
       RUN_TYPE ${_carg_RUN_TYPE}
     )
   endif ()
@@ -312,11 +301,12 @@ macro(speccpu2017_verify_output)
   foreach (_runtype IN LISTS TEST_SUITE_RUN_TYPE ITEMS all)
     file(GLOB_RECURSE _reffiles "${OUTPUT_${_runtype}_DIR}/*")
     foreach (_reffile IN LISTS _reffiles)
-      file(RELATIVE_PATH _relfile "${OUTPUT_${_runtype}_DIR}" "${_reffile}")
-      set(_outfile "${RUN_${_runtype}_DIR}/${_relfile}")
+      file(RELATIVE_PATH _filename "${OUTPUT_${_runtype}_DIR}" "${_reffile}")
+      set(_outfile "${RUN_${_runtype}_DIR_REL}/${_filename}")
+      set(_comparefile "${RUN_${_runtype}_DIR_REL}/compare/${_filename}")
       llvm_test_verify(RUN_TYPE ${_runtype}
-        "${FPCMP}" ${_abstol} ${_reltol} ${_ignorewhitespace}
-          "${_reffile}" "${_outfile}"
+        "%b/${FPCMP}" ${_abstol} ${_reltol} ${_ignorewhitespace}
+          "${_comparefile}" "${_outfile}"
       )
     endforeach ()
   endforeach ()
@@ -350,7 +340,7 @@ macro(speccpu2017_add_executable)
 endmacro()
 
 
-# Copy the input data to the rundir.
+# Copy the input and comparison data to the rundir.
 #
 # Can often be avoided by either passing an absolute path to the file in the
 # input dir, or using the input dir as working directory and specify the output
@@ -361,6 +351,14 @@ macro(speccpu2017_prepare_rundir)
       llvm_copy_dir(${PROG} "${RUN_${_runtype}_DIR}" "${INPUT_all_DIR}")
     endif ()
     llvm_copy_dir(${PROG} "${RUN_${_runtype}_DIR}" "${INPUT_${_runtype}_DIR}")
+
+    file(MAKE_DIRECTORY "${RUN_${_runtype}_DIR}/compare")
+    llvm_copy_dir(${PROG}
+      "${RUN_${_runtype}_DIR}/compare" "${OUTPUT_${_runtype}_DIR}")
+    if (EXISTS "${OUTPUT_${_runtype}_DIR}/../compare")
+        llvm_copy_dir(${PROG}
+          "${RUN_${_runtype}_DIR}/compare" "${OUTPUT_${_runtype}_DIR}/../compare")
+    endif ()
   endforeach ()
 endmacro()
 

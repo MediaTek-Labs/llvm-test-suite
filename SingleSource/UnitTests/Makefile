@@ -10,7 +10,7 @@ DIRS :=
 DIRS += Vector
 DIRS += Vectorizer
 
-DIRS += SignlessTypes Threads C++11
+DIRS += SignlessTypes Threads C++11 Float
 
 # Only test Obj-C on Darwin.
 ifeq ($(TARGET_OS),Darwin)
@@ -57,6 +57,8 @@ PROGRAMS_TO_SKIP += initp1
 # XCore BLR instruction can only branch 21bits, hence restrict memory to 20bits viz: 0x100000->0x1fffff
 XCORE_TARGET_NEEDS_MEMORY := 1
 endif
+
+CFLAGS += -Wno-implicit-function-declaration -Wno-implicit-int
 
 LDFLAGS += -lstdc++
 include $(LEVEL)/SingleSource/Makefile.singlesrc

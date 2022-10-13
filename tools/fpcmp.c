@@ -247,18 +247,20 @@ char *load_file(const char *path, long *size_out) {
   return data;
 }
 
-int diff_files_with_tolerance(const char *path_a, const char *path_b,
-                              double absolute_tolerance,
-                              double relative_tolerance,
-                              bool ignore_whitespace) {
+int diff_file(const char *path_a, const char *path_b, bool parse_fp,
+              double absolute_tolerance, double relative_tolerance,
+              bool ignore_whitespace) {
   /* First, load the file buffers completely into memory. */
   long A_size, B_size;
   char *data_a = load_file(path_a, &A_size);
   char *data_b = load_file(path_b, &B_size);
 
   /* Fast path equivalent buffers. */
-  if (A_size == B_size && memcmp(data_a, data_b, A_size) == 0)
+  if (A_size == B_size && memcmp(data_a, data_b, A_size) == 0) {
+    free(data_a);
+    free(data_b);
     return 0;
+  }
 
   /* *** */
 
@@ -282,7 +284,7 @@ int diff_files_with_tolerance(const char *path_a, const char *path_b,
     }
 
     // Scan for the end of file or next difference.
-    if (*F1P == *F2P && !isPossibleStartOfNumber(*F1P)) {
+    if (*F1P == *F2P && (!parse_fp || !isPossibleStartOfNumber(*F1P))) {
       ++F1P, ++F2P;
       continue;
     }
@@ -294,9 +296,19 @@ int diff_files_with_tolerance(const char *path_a, const char *path_b,
     if (ignore_whitespace) {
       if (skip_whitespace(&F1P, File1End) | skip_whitespace(&F2P, File2End))
         continue;
-    } else {
+    } else if (parse_fp) {
       skip_whitespace(&F1NumStart, File1End);
       skip_whitespace(&F2NumStart, File2End);
+    }
+
+    if (!parse_fp) {
+      // In non-floating point mode, recheck for character difference after
+      // skipping whitespace.
+      if (F1P < File1End && F2P < File2End && *F1P == *F2P) {
+        ++F1P, ++F2P;
+        continue;
+      }
+      break;
     }
 
     const char *F1NumEnd = AdvanceNumber(F1NumStart, File1End);
@@ -325,8 +337,11 @@ int diff_files_with_tolerance(const char *path_a, const char *path_b,
     // Now that we are at the start of the numbers, compare them, exiting if
     // they don't match.
     if (CompareNumbers(F1NumStart, F2NumStart, F1NumEnd, F2NumEnd,
-                       absolute_tolerance, relative_tolerance))
+                       absolute_tolerance, relative_tolerance)) {
+      free(data_a);
+      free(data_b);
       return 1;
+    }
 
     // Numbers compare equal, continue after the numbers.
     F1P = F1NumEnd;
@@ -339,17 +354,23 @@ int diff_files_with_tolerance(const char *path_a, const char *path_b,
   bool F2AtEnd = F2P >= File2End;
   if (!F1AtEnd && !F2AtEnd) {
     fprintf(stderr,
-            "%s: FP Comparison failed, not a numeric difference between '%c' "
-            "and '%c'\n",
+            "%s: Comparison failed, textual difference between '%c' and '%c'\n",
             g_program, F1P[0], F2P[0]);
+    free(data_a);
+    free(data_b);
     return 1;
   }
   if (!F1AtEnd || !F2AtEnd) {
     fprintf(stderr,
-            "%s: FP Comparison failed, unexpected end of one of the files\n",
+            "%s: Comparison failed, unexpected end of one of the files\n",
             g_program);
+    free(data_a);
+    free(data_b);
     return 1;
   }
+
+  free(data_a);
+  free(data_b);
 
   return 0;
 }
@@ -357,16 +378,18 @@ int diff_files_with_tolerance(const char *path_a, const char *path_b,
 void usage() {
   fprintf(stderr, "usage: %s [-a VALUE] [-r VALUE] [-i] <path-A> <path-B>\n\n",
           g_program);
-  fprintf(stderr, "Compare two files using absolute and relative tolerances\n");
-  fprintf(stderr, "when comparing differences between two character\n");
-  fprintf(stderr, "which could be real numbers\n");
-  fprintf(stderr, "The -i switch ignores whitespace differences\n");
+  fprintf(stderr, "Search two text files for differences.\n"
+                  "If either -a or -r is specified (even if zero), floating "
+                  "numbers are parsed and considered equal if neither the "
+                  "absolute nor relative tolerance is exceeded.\n"
+                  "The -i switch also ignores whitespace differences.\n");
   exit(2);
 }
 
 int main(int argc, char * const argv[]) {
   double relative_tolerance = 0.0;
   double absolute_tolerance = 0.0;
+  bool parse_fp = false;
   bool ignore_whitespace = false;
   int i;
 
@@ -399,6 +422,7 @@ int main(int argc, char * const argv[]) {
           absolute_tolerance = value;
         else
           relative_tolerance = value;
+        parse_fp = true;
       }
       break;
 
@@ -417,6 +441,6 @@ int main(int argc, char * const argv[]) {
     usage();
   }
 
-  return diff_files_with_tolerance(argv[i], argv[i + 1], absolute_tolerance,
-                                   relative_tolerance, ignore_whitespace);
+  return diff_file(argv[i], argv[i + 1], parse_fp, absolute_tolerance,
+                   relative_tolerance, ignore_whitespace);
 }

@@ -26,7 +26,7 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
+
 // The Google C++ Testing and Mocking Framework (Google Test)
 //
 // This header file defines the GTEST_OS_* macro.
@@ -78,6 +78,8 @@
 # define GTEST_OS_FREEBSD 1
 #elif defined __Fuchsia__
 # define GTEST_OS_FUCHSIA 1
+#elif defined(__GNU__)
+# define GTEST_OS_GNU_HURD 1
 #elif defined(__GLIBC__) && defined(__FreeBSD_kernel__)
 # define GTEST_OS_GNU_KFREEBSD 1
 #elif defined __linux__

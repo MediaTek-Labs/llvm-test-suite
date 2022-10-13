@@ -1,10 +1,14 @@
 include(CheckCCompilerFlag)
 
 add_subdirectory(C++11)
+add_subdirectory(Float)
 add_subdirectory(SignlessTypes)
 add_subdirectory(Threads)
 add_subdirectory(Vector)
 add_subdirectory(Vectorizer)
+
+list(APPEND CFLAGS -Wno-implicit-function-declaration -Wno-implicit-int)
+
 # FIXME: Disable SJLJ tests for now, until EH edges are represented.
 # add_subdirectory(SetjmpLongjmp)
 if(TARGET_OS STREQUAL "Darwin")
@@ -13,8 +17,11 @@ if(TARGET_OS STREQUAL "Darwin")
 endif()
 
 file(GLOB Source RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.c *.cpp)
-if(TARGET_OS STREQUAL "AIX" AND ARCH STREQUAL "PowerPC" AND NOT PPC_IS_PPC64_ENABLED) 
-  list(REMOVE_ITEM Source AtomicOps.c)
+if(TARGET_OS STREQUAL "AIX" AND ARCH STREQUAL "PowerPC")
+  list(REMOVE_ITEM Source 2007-04-25-weak.c)
+  if (NOT PPC_IS_PPC64_ENABLED)
+    list(REMOVE_ITEM Source AtomicOps.c)
+  endif()
 endif()
 if(TARGET_OS STREQUAL "Darwin")
   list(REMOVE_ITEM Source 2007-04-25-weak.c)

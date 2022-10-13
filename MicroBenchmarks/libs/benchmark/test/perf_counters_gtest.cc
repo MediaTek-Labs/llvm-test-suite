@@ -5,12 +5,13 @@
 
 #ifndef GTEST_SKIP
 struct MsgHandler {
-  void operator=(std::ostream&){}
+  void operator=(std::ostream&) {}
 };
 #define GTEST_SKIP() return MsgHandler() = std::cout
 #endif
 
 using benchmark::internal::PerfCounters;
+using benchmark::internal::PerfCountersMeasurement;
 using benchmark::internal::PerfCounterValues;
 
 namespace {
@@ -95,6 +96,53 @@ TEST(PerfCountersTest, Read2Counters) {
   EXPECT_GT(values2[1], 0);
 }
 
+TEST(PerfCountersTest, ReopenExistingCounters) {
+  // The test works (i.e. causes read to fail) for the assumptions
+  // about hardware capabilities (i.e. small number (3-4) hardware
+  // counters) at this date.
+  if (!PerfCounters::kSupported) {
+    GTEST_SKIP() << "Test skipped because libpfm is not supported.\n";
+  }
+  EXPECT_TRUE(PerfCounters::Initialize());
+  std::vector<PerfCounters> counters;
+  counters.reserve(6);
+  for (int i = 0; i < 6; i++)
+    counters.push_back(PerfCounters::Create({kGenericPerfEvent1}));
+  PerfCounterValues values(1);
+  EXPECT_TRUE(counters[0].Snapshot(&values));
+  EXPECT_FALSE(counters[4].Snapshot(&values));
+  EXPECT_FALSE(counters[5].Snapshot(&values));
+}
+
+TEST(PerfCountersTest, CreateExistingMeasurements) {
+  // The test works (i.e. causes read to fail) for the assumptions
+  // about hardware capabilities (i.e. small number (3-4) hardware
+  // counters) at this date,
+  // the same as previous test ReopenExistingCounters.
+  if (!PerfCounters::kSupported) {
+    GTEST_SKIP() << "Test skipped because libpfm is not supported.\n";
+  }
+  EXPECT_TRUE(PerfCounters::Initialize());
+  std::vector<PerfCountersMeasurement> perf_counter_measurements;
+  std::vector<std::pair<std::string, double>> measurements;
+
+  perf_counter_measurements.reserve(10);
+  for (int i = 0; i < 10; i++)
+    perf_counter_measurements.emplace_back(
+        std::vector<std::string>{kGenericPerfEvent1});
+
+  perf_counter_measurements[0].Start();
+  EXPECT_TRUE(perf_counter_measurements[0].Stop(measurements));
+
+  measurements.clear();
+  perf_counter_measurements[8].Start();
+  EXPECT_FALSE(perf_counter_measurements[8].Stop(measurements));
+
+  measurements.clear();
+  perf_counter_measurements[9].Start();
+  EXPECT_FALSE(perf_counter_measurements[9].Stop(measurements));
+}
+
 size_t do_work() {
   size_t res = 0;
   for (size_t i = 0; i < 100000000; ++i) res += i * i;
@@ -103,10 +151,10 @@ size_t do_work() {
 
 void measure(size_t threadcount, PerfCounterValues* values1,
              PerfCounterValues* values2) {
-  CHECK_NE(values1, nullptr);
-  CHECK_NE(values2, nullptr);
+  BM_CHECK_NE(values1, nullptr);
+  BM_CHECK_NE(values2, nullptr);
   std::vector<std::thread> threads(threadcount);
-  auto work = [&]() { CHECK(do_work() > 1000); };
+  auto work = [&]() { BM_CHECK(do_work() > 1000); };
 
   // We need to first set up the counters, then start the threads, so the
   // threads would inherit the counters. But later, we need to first destroy the
