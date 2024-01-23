@@ -13,7 +13,7 @@ def _getCodeSize(context):
     llvm_size = context.config.llvm_size
     if llvm_size:
         # -format=sysv is easier to parse than darwin/berkeley.
-        cmdline = [llvm_size, '-format=sysv', context.executable]
+        cmdline = [llvm_size, '--format=sysv', context.executable]
         out = testplan.check_output(cmdline).decode('utf-8', errors='ignore')
         lines = out.splitlines()
         # First line contains executable name, second line should be a
