@@ -16,6 +16,7 @@ def compute(context):
             testplan.check_call([context.config.strip_tool,
                                  '--remove-section=.comment',
                                  "--remove-section='.note*'",
+                                 "--target=elf32-little",
                                  '-o', stripped_executable,
                                  executable])
             executable = stripped_executable
