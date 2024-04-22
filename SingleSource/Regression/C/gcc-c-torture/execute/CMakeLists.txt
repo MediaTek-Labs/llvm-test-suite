@@ -140,6 +140,11 @@ file(GLOB UnsupportedTests CONFIGURE_DEPENDS
   # Size of array element is not a multiple of its alignment.
   pr36093.c
   pr43783.c
+
+  # Uses an incorrect method to prevent tailcalls which clang at -O1 or above
+  # can see through and tail call regardless. Also the callee compares
+  # pointers to different objects, which is undefined behaviour.
+  frame-address.c
 )
 list(APPEND TestsToSkip ${UnsupportedTests})
 
@@ -176,6 +181,7 @@ file(GLOB TestRequiresFWrapV CONFIGURE_DEPENDS
   20040409-1.c
   20040409-2.c
   20040409-3.c
+  950704-1.c
 )
 
 # Tests that require -Wno-return-type
@@ -191,12 +197,6 @@ file(GLOB TestRequiresLibM CONFIGURE_DEPENDS
   980709-1.c
   float-floor.c
   complex-5.c  # -lm needed on FreeBSD
-)
-
-# Tests that require newnlib Nano IO (--undefined=_printf_float ldflag)
-file(GLOB TestRequiresNanoIO CONFIGURE_DEPENDS
-  920501-8.c
-  930513-1.c
 )
 
 ##
@@ -249,6 +249,19 @@ if(ARCH MATCHES "Mips")
   endif()
 
   list(APPEND TestsToSkip ${MipsTestsToSkip})
+endif()
+
+# LoongArch Test Blacklist
+if(ARCH MATCHES "LoongArch")
+  file(GLOB LoongArchTestsToSkip CONFIGURE_DEPENDS
+    # No backend support for __builtin_longjmp/__builtin_setjmp
+    built-in-setjmp.c
+    pr84521.c
+    # Triggers "return address can be determined only for current frame"
+    20030323-1.c
+  )
+
+  list(APPEND TestsToSkip ${LoongArchTestsToSkip})
 endif()
 
 # RISC-V Test Blacklist
@@ -367,10 +380,6 @@ foreach(File ${TestFiles})
 
   if(${File} IN_LIST TestRequiresFWrapV)
     list(APPEND MaybeCFlags "-fwrapv")
-  endif()
-
-  if(${File} IN_LIST TestRequiresNanoIO)
-    list(APPEND MaybeLDFlags "-Wl,-u,_printf_float")
   endif()
 
   # Add Test Target

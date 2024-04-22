@@ -2,9 +2,15 @@ cmake_minimum_required(VERSION 3.13.4)
 
 include(CheckSymbolExists)
 
-option(TEST_SUITE_FORTRAN "Enable Fortran test suite" OFF)
 
 project(test-suite C CXX)
+
+if("Fortran" IN_LIST TEST_SUITE_SUBDIRS)
+  set(TEST_SUITE_FORTRAN_default ON)
+else()
+  set(TEST_SUITE_FORTRAN_default OFF)
+endif()
+option(TEST_SUITE_FORTRAN "Enable Fortran test suite" ${TEST_SUITE_FORTRAN_default})
 
 if(TEST_SUITE_FORTRAN)
   enable_language(Fortran)
@@ -31,6 +37,10 @@ if(TEST_SUITE_FORTRAN)
     mark_as_advanced(CLEAR CMAKE_Fortran_COMPILER)
 endif()
 
+if(CMAKE_C_COMPILER_ID MATCHES "Clang" AND CMAKE_C_SIMULATE_ID MATCHES "MSVC")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /FIstdio.h")
+endif()
+
 # The files in cmake/caches often want to pass along additional flags to select
 # the target architecture. Note that you should still use
 # CMAKE_OSX_ARCHITECTURES and CMAKE_C_COMPILER_TARGET where possible.
@@ -49,7 +59,11 @@ set(LLVM_CODESIGNING_IDENTITY "" CACHE STRING
 add_definitions(-DNDEBUG)
 option(TEST_SUITE_SUPPRESS_WARNINGS "Suppress all warnings" ON)
 if(${TEST_SUITE_SUPPRESS_WARNINGS})
-  add_definitions(-w)
+  if(NOT CMAKE_Fortran_COMPILER_ID STREQUAL "LLVMFlang")
+    # NOTE: ATM (18/8/23) LLVM Flang does not support the -w flag.
+    # FIXME: Don't use add_definitions to add compiler flags
+    add_definitions(-w)
+  endif()
 endif()
 
 # We want reproducible builds, so using __DATE__ and __TIME__ is bad
@@ -227,6 +241,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "AIX")
   endif()
 endif()
 
+include(HandleCompilerRT)
+
 include(TestSuite)
 include(SingleMultiSource)
 # Needs by External/sollve_vv.
@@ -289,6 +305,12 @@ mark_as_advanced(TEST_SUITE_LIT TEST_SUITE_LIT_FLAGS)
 mark_as_advanced(TEST_SUITE_LIT)
 
 add_subdirectory(tools)
+
+# Turn on ignore whitespacing on WIN32 to avoid line-ending mismatch
+if(TARGET_OS STREQUAL "Windows")
+  set(FP_IGNOREWHITESPACE ON)
+endif()
+
 # Shortcut for the path to the fpcmp executable
 set(FPCMP fpcmp-target)
 if (TEST_SUITE_USER_MODE_EMULATION)

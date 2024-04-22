@@ -12,8 +12,26 @@ macro(create_local_hip_tests VariantSuffix)
   list(APPEND HIP_LOCAL_TESTS empty)
   list(APPEND HIP_LOCAL_TESTS with-fopenmp)
   list(APPEND HIP_LOCAL_TESTS saxpy)
+  list(APPEND HIP_LOCAL_TESTS InOneWeekend)
+  list(APPEND HIP_LOCAL_TESTS TheNextWeek)
+
+  # Copy files needed for ray-tracing tests.
+  file(GLOB IMAGE_FILES "workload/ray-tracing/images/*.jpg" "workload/ray-tracing/images/*.png")
+  file(COPY ${IMAGE_FILES} DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
+
   foreach(_hip_test IN LISTS HIP_LOCAL_TESTS)
-    create_one_local_test(${_hip_test} ${_hip_test}.hip
+    set(test_source "${_hip_test}.hip")
+
+    if(_hip_test STREQUAL "TheNextWeek" OR _hip_test STREQUAL "InOneWeekend")
+      file(GLOB REF_PPM_FILES "workload/ray-tracing/${_hip_test}/*.ppm")
+      file(COPY ${REF_PPM_FILES} DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
+      set(test_source "workload/ray-tracing/${_hip_test}/main.cc")
+      # need -mfma to enable FMA in host code
+      set_source_files_properties(${test_source} PROPERTIES
+        COMPILE_FLAGS "-xhip -mfma")
+    endif()
+
+    create_one_local_test(${_hip_test} ${test_source}
                           ${VariantOffload} ${VariantSuffix}
                           "${VariantCPPFLAGS}" "${VariantLibs}")
   endforeach()
@@ -50,9 +68,6 @@ macro(create_hip_tests)
     get_version(RocmVersion ${RocmDir})
     message(STATUS "Found ROCm ${RocmVersion}")
     list(APPEND ROCM_PATHS ${RocmDir})
-    add_library(amdhip64-${RocmVersion} SHARED IMPORTED)
-    set_property(TARGET amdhip64-${RocmVersion} PROPERTY IMPORTED_LOCATION
-      ${RocmDir}/lib/libamdhip64.so)
   endforeach(RocmDir)
 
   if(NOT ROCM_PATHS)
@@ -67,17 +82,15 @@ macro(create_hip_tests)
     COMMENT "Run all simple HIP tests")
 
   if(NOT AMDGPU_ARCHS)
-    list(APPEND AMDGPU_ARCHS "gfx906;gfx908")
+    list(APPEND AMDGPU_ARCHS "gfx906;gfx90a;gfx1030;gfx1100;native")
   endif()
 
   foreach(_RocmPath ${ROCM_PATHS})
     get_version(_RocmVersion ${_RocmPath})
     set(_HIP_Suffix "hip-${_RocmVersion}")
     # Set up HIP test flags
-    set(_HIP_CPPFLAGS -D__HIP_ROCclr__ -xhip --hip-device-lib-path=${_RocmPath}/amdgcn/bitcode
-                      -I${_RocmPath}/include)
-    set(_HIP_LDFLAGS -L${_RocmPath}/lib -lamdhip64)
-    set(_HIP_Libs amdhip64-${RocmVersion})
+    set(_HIP_CPPFLAGS --rocm-path=${_RocmPath})
+    set(_HIP_LDFLAGS --rocm-path=${_RocmPath} --hip-link -rtlib=compiler-rt -unwindlib=libgcc -frtlib-add-rpath)
 
     # Unset these for each iteration of rocm path.
     set(_ArchFlags)

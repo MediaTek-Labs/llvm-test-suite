@@ -22,8 +22,12 @@ set(RUN_OPTIONS --debug --exclude-dir .svn --verbose -d%S/dbdir -r ${INPUT})
 if(TARGET_OS STREQUAL "Darwin")
   list(APPEND CPPFLAGS -DC_DARWIN)
 endif()
+# ClamAV utilizes functions from <netdb.h>. However, since _XOPEN_SOURCE=700 is
+# defined globally on AIX, it prevents us from having access to some of the
+# functions that are required within ClamAV. Thus, _XOPEN_SOURCE=600 is defined
+# explicitly for AIX to resolve this issue.
 if(TARGET_OS STREQUAL "AIX")
-  list(APPEND CPPFLAGS -DC_AIX)
+  list(APPEND CPPFLAGS -DC_AIX -D_XOPEN_SOURCE=600)
 endif()
 if(TARGET_OS STREQUAL "IRIX")
   list(APPEND CPPFLAGS -DC_IRIX)
@@ -174,4 +178,9 @@ if(TARGET_OS STREQUAL "Linux")
   find_package(Intl REQUIRED)
   target_link_libraries(clamscan ${Intl_LIBRARIES})
 endif()
+# zlib fails to build with correctly defined target OS macros.
+# (https://github.com/madler/zlib/pull/895)
+# Disable the compiler extension to workaround the build failure until a zlib
+# source update with the fix.
+target_compile_options(clamscan PRIVATE -fno-define-target-os-macros)
 llvm_test_data(clamscan ${INPUT} dbdir)
