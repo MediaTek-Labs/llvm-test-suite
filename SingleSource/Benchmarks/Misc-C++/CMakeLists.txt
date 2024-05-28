@@ -9,6 +9,7 @@ if(ARCH STREQUAL "nanoMIPS")
   list(APPEND LDFLAGS "-lstubs")
   list(APPEND LDFLAGS "-Wl,--no-whole-archive")
   list(REMOVE_ITEM Source stepanov_v1p2.cpp)
+  list(REMOVE_ITEM Source stepanov_container.cpp)
 endif()
 
 list(APPEND LDFLAGS -lm)

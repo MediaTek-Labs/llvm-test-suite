@@ -257,6 +257,8 @@ if(ARCH MATCHES "nanoMIPS")
     pr23135.c
     pr28982b.c
     pr84748.c
+    pr36093.c
+    pr43783.c
   )
 
   list(APPEND TestsToSkip ${MipsTestsToSkip})

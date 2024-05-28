@@ -26,11 +26,13 @@ if(NOT TEST_SUITE_BENCHMARKING_ONLY)
   list(APPEND Source
     hello.cpp
     reversefile.cpp
-    spellcheck.cpp
     sumcol.cpp
     wc.cpp
     wordfreq.cpp
   )
+  if(NOT ARCH STREQUAL "nanoMIPS")
+    list(APPEND Source spellcheck.cpp)
+  endif()
 endif()
 list(APPEND LDFLAGS -lm)
 if(TARGET_OS STREQUAL "Darwin")
