@@ -56,6 +56,14 @@ if [ "$APPEND_STATUS" = "1" ]; then
 fi
 
 echo exit $EXITCODE > $REPORT
-awk -F' ' '{if ($2 ~ /^task-clock/ || $3 ~ /^task-clock/) {gsub(/,/,"",$1);print "user",$1/1000;} else if($2 == "seconds" && $4 == "elapsed") print "real",$1;}' $PERFSTAT >> $REPORT
+if [ -z $perf ]; then
+  # Some llvm-tests-suite lit modules read $REPORT content
+  # (for example compiletime). In order for assertions
+  # not to fail, we mock expected values when we don't
+  # have perf tool available.
+  echo "user 0" > $REPORT
+else
+  awk -F' ' '{if ($2 ~ /^task-clock/ || $3 ~ /^task-clock/) {gsub(/,/,"",$1);print "user",$1/1000;} else if($2 == "seconds" && $4 == "elapsed") print "real",$1;}' $PERFSTAT >> $REPORT
+fi
 
 exit $EXITCODE
