@@ -21,8 +21,8 @@ test_name=$3;
 shift 3
 
 if [ $# -eq 0 ]; then
-    $qemu_path -cpu $cpu -semihosting -nographic -m 256 -kernel $test_name 2> /dev/null
+    $qemu_path -cpu $cpu -semihosting -m 256 -D /dev/null -kernel $test_name
 else
     # Wrapped in eval to properly expand $@
-    eval "$qemu_path -cpu $cpu -semihosting -nographic -m 256 -kernel $test_name -append \"$@\"" 2> /dev/null
+    eval "$qemu_path -cpu $cpu -semihosting -m 256 -D /dev/null -kernel $test_name -append \"$@\""
 fi
