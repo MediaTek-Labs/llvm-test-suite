@@ -1,5 +1,6 @@
-set(CMAKE_CXX_STANDARD 14)
-add_subdirectory(EH)
+if(NOT ARCH STREQUAL "nanoMIPS")
+  add_subdirectory(EH)
+endif()
 
 file(GLOB Source RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.c *.cpp)
 
