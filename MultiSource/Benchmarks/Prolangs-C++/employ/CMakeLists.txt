@@ -1,4 +1,7 @@
 set(RUN_OPTIONS 400 < input.txt)
 set(HASH_PROGRAM_OUTPUT 1)
+list(APPEND LDFLAGS "-Wl,--whole-archive")
+list(APPEND LDFLAGS "-lstubs")
+list(APPEND LDFLAGS "-Wl,--no-whole-archive")
 llvm_multisource(employ)
 llvm_test_data(employ input.txt)

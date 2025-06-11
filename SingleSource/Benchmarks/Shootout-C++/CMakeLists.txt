@@ -1,6 +1,9 @@
 add_subdirectory(EH)
 
 list(APPEND CXXFLAGS -Wno-deprecated)
+list(APPEND LDFLAGS "-Wl,--whole-archive")
+list(APPEND LDFLAGS "-lstubs")
+list(APPEND LDFLAGS "-Wl,--no-whole-archive")
 set(FP_TOLERANCE 0.00000001)
 set(Source
   ackermann.cpp

@@ -1,2 +1,5 @@
+list(APPEND LDFLAGS "-Wl,--whole-archive")
+list(APPEND LDFLAGS "-lstubs")
+list(APPEND LDFLAGS "-Wl,--no-whole-archive")
 list(APPEND LDFLAGS -lm)
 llvm_singlesource()

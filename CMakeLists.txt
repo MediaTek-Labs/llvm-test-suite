@@ -304,7 +304,7 @@ if (TEST_SUITE_USER_MODE_EMULATION)
 endif()
 
 list(APPEND LDFLAGS "-L${CMAKE_CURRENT_BINARY_DIR}")
-add_library(stubs STATIC libstubs.c)
+add_library(stubs STATIC libstubs.c libcxx_stubs.cpp)
 add_dependencies(stubs
   build-HashProgramOutput.sh
   build-timeit
