@@ -2,7 +2,7 @@
    in Bjarne Stroustrup's book "The C++ Programming Language" 2nd Edition. */
 #include <iostream>
 #include "bjarne.h"
-using namespace std;
+//using namespace std;
 
 enum color {black='*', white=' '};
 
@@ -50,8 +50,8 @@ void screen_clear() { screen_init(); }
 void screen_refresh() {
     for (int y=YMAX-1; 0<=y; y--) {  // top to bottom
 	for (int x=0; x<XMAX; x++)   // left to right
-	    cout << screen[x][y];
-	cout << '\n';
+	    std::cout << screen[x][y];
+	std::cout << '\n';
     }
 }
 
