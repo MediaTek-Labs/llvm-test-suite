@@ -1,8 +1,9 @@
 #!/bin/bash
 # Sync a build directory to remote device for running.
 set -eu
-DEVICE="$1"
-BUILDDIR="$2"
+CLIENT="$1"
+DEVICE="$2"
+BUILDDIR="$3"
 
 case $BUILDDIR in
     /*) ;;
@@ -12,9 +13,13 @@ case $BUILDDIR in
         ;;
 esac
 
+# Normalize path: resolve symlinks to physical path
+BUILDDIR=$(cd "$BUILDDIR" && pwd -P)
+
 RSYNC_FLAGS=""
 RSYNC_FLAGS+=" -a"
 RSYNC_FLAGS+=" --delete --delete-excluded"
+RSYNC_FLAGS+=" -e \"$CLIENT\""
 # We cannot easily differentiate between intermediate build results and
 # files necessary to run the benchmark, so for now we just exclude based on
 # some file extensions...
@@ -30,5 +35,5 @@ RSYNC_FLAGS+=" --exclude=rules.ninja"
 RSYNC_FLAGS+=" --exclude=CMakeFiles/"
 
 set -x
-ssh $DEVICE mkdir -p "$BUILDDIR"
+$CLIENT $DEVICE mkdir -p "$BUILDDIR"
 eval rsync $RSYNC_FLAGS $BUILDDIR/ $DEVICE:$BUILDDIR/

@@ -1,0 +1,23 @@
+---
+# OpenMP ALLOCATE support landed in flang, so these are expected to pass.
+"allocate-15.f90":
+  xfail: false
+
+"allocate-16.f90":
+  xfail: false
+
+"imperfect2.f90":
+  xfail: false
+
+# These tests need specific versions of OpenMP beyond flang's default to pass:
+"allocate-1.f90":
+  compile_flags: ["-fopenmp-version=50"]
+
+"allocate-5.f90":
+  compile_flags: ["-fopenmp-version=51"]
+
+"atomic-25.f90":
+  compile_flags: ["-fopenmp-version=51"]
+
+"atomic.f90":
+  compile_flags: ["-fopenmp-version=50"]

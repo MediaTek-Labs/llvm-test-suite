@@ -5,6 +5,21 @@ else()
   list(APPEND CFLAGS -DTARGET_RT_BIG_ENDIAN=1)
   list(APPEND CXXFLAGS -DTARGET_RT_BIG_ENDIAN=1)
 endif()
+
+if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "sparc")
+  list(APPEND CFLAGS -DUNALIGNED_MEM_ACCESS_NOT_SUPPORTED)
+  list(APPEND CXXFLAGS -DUNALIGNED_MEM_ACCESS_NOT_SUPPORTED)
+endif()
+
+if(ARCH MATCHES "riscv")
+  include(CheckSymbolExists)
+  check_symbol_exists(__riscv_misaligned_avoid "" RISCV_MISALIGNED_AVOID)
+  if(RISCV_MISALIGNED_AVOID)
+    list(APPEND CFLAGS -DUNALIGNED_MEM_ACCESS_NOT_SUPPORTED)
+    list(APPEND CXXFLAGS -DUNALIGNED_MEM_ACCESS_NOT_SUPPORTED)
+  endif()
+endif()
+
 set(RUN_OPTIONS - - < tune.wav)
 llvm_multisource(alacconvert-encode
   EndianPortable.c

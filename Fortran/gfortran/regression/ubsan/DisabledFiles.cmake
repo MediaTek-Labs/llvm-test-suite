@@ -6,14 +6,7 @@
 #
 #===------------------------------------------------------------------------===#
 
-# There are currently no unsupported files.
 set(UNSUPPORTED_FILES "")
-
-# There are currently no unimplemented files.
 set(UNIMPLEMENTED_FILES "")
-
-# There are currently no skipped files.
 set(SKIPPED_FILES "")
-
-# There are currently no failing files.
 set(FAILING_FILES "")

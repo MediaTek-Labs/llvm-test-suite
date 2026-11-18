@@ -1,11 +1,42 @@
 #include <memory>
 #include <random>
 
+// Helper macros for stringification in _Pragma
+#define XSTR(s) STR(s)
+#define STR(s) #s
+#define PRAGMA_VF(VF) _Pragma(STR(clang loop vectorize_width(VF)))
+#define PRAGMA_IC(IC) _Pragma(STR(clang loop interleave_count(IC)))
+
+#define DEFINE_SCALAR_AND_VECTOR_FN1_TYPE(Init, Loop, Type)                    \
+  auto ScalarFn = [](auto *A, Type TC) -> Type {                               \
+    Init _Pragma("clang loop vectorize(disable) interleave_count(1)") Loop     \
+  };                                                                           \
+  auto VectorFn = [](auto *A, Type TC) -> Type {                               \
+    Init _Pragma("clang loop vectorize(enable)") Loop                          \
+  };
+
 #define DEFINE_SCALAR_AND_VECTOR_FN2(Init, Loop)                               \
   auto ScalarFn = [](auto *A, auto *B, unsigned TC) {                          \
     Init _Pragma("clang loop vectorize(disable) interleave_count(1)") Loop     \
   };                                                                           \
   auto VectorFn = [](auto *A, auto *B, unsigned TC) {                          \
+    Init _Pragma("clang loop vectorize(enable)") Loop                          \
+  };
+
+// Macro with explicit VF and interleave count control
+#define DEFINE_SCALAR_AND_VECTOR_FN2_VF_INTERLEAVE(Init, Loop, VF, IC)         \
+  auto ScalarFn = [](auto *A, auto *B, unsigned TC) {                          \
+    Init _Pragma("clang loop vectorize(disable) interleave_count(1)") Loop     \
+  };                                                                           \
+  auto VectorFn = [](auto *A, auto *B, unsigned TC) {                          \
+    Init PRAGMA_VF(VF) PRAGMA_IC(IC) Loop                                      \
+  };
+
+#define DEFINE_SCALAR_AND_VECTOR_FN2_TYPE(Init, Loop, Type)                    \
+  auto ScalarFn = [](auto *A, auto *B, Type TC) -> Type {                      \
+    Init _Pragma("clang loop vectorize(disable) interleave_count(1)") Loop     \
+  };                                                                           \
+  auto VectorFn = [](auto *A, auto *B, Type TC) -> Type {                      \
     Init _Pragma("clang loop vectorize(enable)") Loop                          \
   };
 
@@ -58,10 +89,17 @@ static std::mt19937 rng;
 // Initialize arrays A with random numbers.
 template <typename Ty>
 static void init_data(const std::unique_ptr<Ty[]> &A, unsigned N) {
-  std::uniform_int_distribution<uint64_t> distrib(
-      std::numeric_limits<Ty>::min(), std::numeric_limits<Ty>::max());
-  for (unsigned i = 0; i < N; i++)
-    A[i] = distrib(rng);
+  if constexpr (std::is_floating_point_v<Ty>) {
+    std::uniform_real_distribution<Ty> distrib(
+        std::numeric_limits<Ty>::min(), std::numeric_limits<Ty>::max());
+    for (unsigned i = 0; i < N; i++)
+      A[i] = distrib(rng);
+  } else {
+    std::uniform_int_distribution<Ty> distrib(
+        std::numeric_limits<Ty>::min(), std::numeric_limits<Ty>::max());
+    for (unsigned i = 0; i < N; i++)
+      A[i] = distrib(rng);
+  }
 }
 
 template <typename Ty>

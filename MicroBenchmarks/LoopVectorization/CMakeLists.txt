@@ -10,10 +10,15 @@ endif()
 llvm_test_run()
 
 llvm_test_executable(LoopVectorizationBenchmarks
+  ConditionalScalarAssignment.cpp
   main.cpp
   MathFunctions.cpp
+  ReductionStartValue.cpp
   RuntimeChecks.cpp
+  SmallLoopTripCount.cpp
   VectorOperations.cpp
+  EarlyExit.cpp
+  CompressingPatterns.cpp
 )
 
 target_link_libraries(LoopVectorizationBenchmarks benchmark)
@@ -26,3 +31,12 @@ llvm_test_executable(LoopInterleavingBenchmarks
 )
 
 target_link_libraries(LoopInterleavingBenchmarks benchmark)
+
+llvm_test_run()
+
+llvm_test_executable(LoopEpilogueVectorizationBenchmarks
+  main.cpp
+  EpilogueVectorization.cpp
+)
+
+target_link_libraries(LoopEpilogueVectorizationBenchmarks benchmark)

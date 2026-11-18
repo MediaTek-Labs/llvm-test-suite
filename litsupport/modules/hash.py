@@ -2,6 +2,7 @@
 from litsupport import testplan
 import hashlib
 import logging
+import os
 import platform
 
 
@@ -10,8 +11,8 @@ def compute(context):
         return
     executable = context.executable
     try:
-        # Darwin's and Solaris' "strip" don't support these arguments.
-        if platform.system() != "Darwin" and platform.system() != "SunOS":
+        # AIX, z/OS, and Darwin's and Solaris' "strip" don't support these arguments.
+        if platform.system() != 'OS/390' and platform.system() != 'AIX' and platform.system() != "Darwin" and platform.system() != "SunOS":
             stripped_executable = executable + ".stripped"
             testplan.check_call(
                 [
@@ -28,6 +29,8 @@ def compute(context):
         h = hashlib.md5()
         h.update(open(executable, "rb").read())
         context.executable_hash = h.hexdigest()
+        if executable != context.executable:
+            os.remove(executable)
     except Exception:
         logging.info("Could not calculate hash for %s" % executable)
         context.executable_hash = ""

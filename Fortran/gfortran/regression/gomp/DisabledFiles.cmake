@@ -10,12 +10,8 @@
 set(UNSUPPORTED_FILES "")
 
 file(GLOB UNIMPLEMENTED_FILES CONFIGURE_DEPENDS
-  # unimplemented: procedure pointers
-  atomic-10.f90
-
   # unimplemented: procedure pointer arguments
   pr44036-1.f90
-  pr44036-2.f90
 
   # unimplemented: coarray in procedure interface
   declare-simd-coarray-lib.f90
@@ -40,19 +36,12 @@ file(GLOB UNIMPLEMENTED_FILES CONFIGURE_DEPENDS
   pr79154-2.f90
   pr82568.f90
   schedule-modifiers-1.f90
-  target3.f90
-  teams1.f90
 
   # unimplemented: array sections not supported for task depend
   depend-4.f90
 
-  # unimplemented: OMPD_target_data for Array Expressions or Structure
-  # Components.
-  map-5.f90
-
   # unimplemented: OpenMP Block construct clause
   pr71758.f90
-  pr77352.f90
   pr81887.f90
   target-device-2.f90
 
@@ -61,29 +50,42 @@ file(GLOB UNIMPLEMENTED_FILES CONFIGURE_DEPENDS
 
   # unimplemented: Unhandled block directive
   pr39152.f90
-  pr69128.f90
-  pr69281.f90
-  pr70855.f90
   pr95869.f90
-  teams-4.f90
-  workshare2.f90
-  workshare3.f90
+
+  # unimplemented: OpenMPDeclarativeAllocate
+  allocate-pinned-1.f90
 
   # unimplemented: OpenMPDeclareSimdConstruct
   pr79154-1.f90
   pr93555.f90
   declare-simd-6.f90
 
+  # unimplemented: OpenMPDispatchConstruct
+  dispatch-10.f90
+
   # unimplemented: OpenMPRequiresConstruct
   requires-7.f90
   target-device-ancestor-5.f90
   target-device-ancestor-6.f90
+
+  # unimplemented: METADIRECTIVE
+  metadirective-7.f90
 
   # unimplemented: NONTEMPORAL clause in SIMD construct
   nontemporal-1.f90
 
   # unimplemented: LINEAR clause in SIMD construct
   pr89027.f90
+
+  # unimplemented: clause ALLOCATE in TARGET construct
+  allocate-clause.f90
+
+  # unimplemented: non-rectangular canonical loop nests
+  canonical-loop-1.f90
+  pr85313.f90
+
+  # unimplemented: assumption clauses on the assumes directive
+  allocate-5.f90
 )
 
 file(GLOB SKIPPED_FILES CONFIGURE_DEPENDS
@@ -98,11 +100,19 @@ file(GLOB SKIPPED_FILES CONFIGURE_DEPENDS
   target-device-ancestor-4.f90
   taskwait.f90
 
+  # The test is checking for semantic checks ensuring that omp library calls
+  # are not nested inside of omp teams. Flang does not currently implement this
+  # check.
+  teams-3.f90
+
   # Crash in: Fortran::semantics::AnalyzeKindSelector
   openmp-simd-1.f90
   openmp-simd-2.f90
   openmp-simd-3.f90
   pr71704.f90
+
+  # error: A DO loop must follow the SIMD directive
+  unroll-simd-2.f90
 )
 
 file(GLOB FAILING_FILES CONFIGURE_DEPENDS
@@ -207,7 +217,6 @@ file(GLOB FAILING_FILES CONFIGURE_DEPENDS
   num-teams-1.f90
   num-teams-2.f90
   openmp-simd-7.f90
-  parallel-master-1.f90
   pr103695.f90
   pr99928-11.f90
   reduction-task-3.f90
@@ -221,8 +230,6 @@ file(GLOB FAILING_FILES CONFIGURE_DEPENDS
   assume-1.f90
   assume-3.f90
   assume-4.f90
-  atomic-25.f90
-  atomic.f90
   openmp-simd-8.f90
 
   # expected 'END ATOMIC'
@@ -253,7 +260,6 @@ file(GLOB FAILING_FILES CONFIGURE_DEPENDS
   loop-5.f90
 
   # expected 'TARGET UPDATE'
-  map-6.f90
   map-7.f90
   target-has-device-addr-2.f90
 
@@ -287,14 +293,6 @@ file(GLOB FAILING_FILES CONFIGURE_DEPENDS
 
   # COPYPRIVATE variable is not PRIVATE or THREADPRIVATE in outer context
   copyprivate-1.f90
-  pr26224.f
-
-  # The DEFAULT(NONE) clause requires that 'a' must be listed in a data-sharing
-  # attribute clause
-  crayptr4.f90
-
-  # Implied-shape array must be a named constant or a dummy argument
-  crayptr5.f90
 
   # Internal: no symbol found for
   declare-simd-2.f90
@@ -340,7 +338,10 @@ file(GLOB FAILING_FILES CONFIGURE_DEPENDS
   # Must be a constant value
   target2.f90
 
- # bad character ('{') in Fortran token
+  # Assumed-size arrays cannot be arguments to DEPEND clause
+  pr80918.f90
+
+  # bad character ('{') in Fortran token
   declare-variant-10.f90
   declare-variant-11.f90
   declare-variant-12.f90
@@ -360,16 +361,137 @@ file(GLOB FAILING_FILES CONFIGURE_DEPENDS
   include_1.f
   include_2.f90
 
+  # error: to and alloc map types are permitted
+  # error: verification of lowering to FIR failed
+  polymorphic-mapping-1.f90
+
+  #
+  # error: unknown argument: '-foffload=disable'
+  #
+  # In many other cases, we have ignored command line options that are not
+  # recognized by flang. But in this case, this approach may not be desirable
+  # since disabling offload when using $omp target, as is the case in these
+  # tests, is probably exercising something specific that we care about. We
+  # keep this disabled here until we decide how we want to handle this.
+  metadirective-construct.f90
+
+  # error: could not parse
+  adjust-args-4.f90
+  adjust-args-5.f90
+  adjust-args-7.f90
+  adjust-args-8.f90
+  adjust-args-10.f90
+  adjust-args-12.f90
+  adjust-args-13.f90
+  append_args-3.f90
+  append_args-4.f90
+  append-args-interop.f90
+  declare-variant-21.f90
+  dispatch-3.f90
+  dispatch-8.f90
+  dispatch-9a.f90
+  interop-4.f90
+  interop-5.f90
+  metadirective-2.f90
+  metadirective-6.f90
+  metadirective-13.f90
+
+  # error: DEFAULT clause is not allowed on directive METADIRECTIVE in
+  # OpenMP v3.1, try -fopenmp-version=50
+  metadirective-3.f90
+  metadirective-4.f90
+  metadirective-5.f90
+  metadirective-12.f90
+
+  # error: The DISPATCH construct is empty or contains more than one statement
+  dispatch-1.f90
+  dispatch-4.f90
+  dispatch-5.f90
+  dispatch-7.f90
+
+  # REQUIRES applies to a compilation unit, which in Fortran is a program unit
+  # gfortran expects an error when not all program units in a file have the
+  # same requires directives.
+  requires-8.f90
+
+  # Flang requires a MAP directive on TARGET DATA in the default OpenMP
+  # version (i.e. 3.1). The required set was extended in later versions
+  # of the spec.
+  use_device_ptr-1.f90
+
   #
   # These tests are marked as failing because the compilation succeeds when it
   # is expected to fail.
   #
   canonical-loop-2.f90
   crayptr2.f90
-  map-alloc-comp-1.f90
+  linear-8.f90
+  polymorphic-mapping-4.f90
+  polymorphic-mapping-5.f90
   pr33439.f90
-  pr44036-3.f90
   pr78866-2.f90
   reduction3.f90
   sharing-3.f90
+  linear-5.f90 # Re-enable this test when default OpenMP version = 5.2
+  # Reference to variable not flagged with default(none)
+  affinity-clause-4.f90
+  parallel-master-2.f90
+  # ALLOCATE on common blocks is not-yet-implemented in gfortran, flang
+  # compiles the code with warnings.
+  allocate-4.f90
+  # Local variable is assumed to be private, and the expectation is that
+  # its use in FIRSTPRIVATE will be flagged as an error.
+  # The test may be invalid.
+  scope-5.f90
+  # Before 6.0 ORDERED clause may not affect loop generated by TILE.
+  # This is not diagnosed by flang.
+  tile-3.f90
+
+  # This test should not be expected to fail now that metadirective lowering
+  # is implemented.
+  metadirective-8.f90
+  declare-variant-6.f90 # See https://github.com/llvm/llvm-test-suite/pull/447
+
+  # These tests fail, but the cause of their failure needs to be investigated.
+  allocate-8.f90
+  c_ptr_tests_20.f90
+  declare-target-indirect-2.f90
+  defaultmap-8.f90
+  defaultmap-9.f90
+  depobj-3.f90
+  inner-loops-1.f90
+  map-10.f90
+  map-12.f90
+  requires-10.f90
+  tile-10.f90
+  tile-1.f90
+  tile-2.f90
+  tile-5.f90
+  tile-imperfect-nest-1.f90
+  tile-inner-loops-1.f90
+  tile-inner-loops-2.f90
+  tile-inner-loops-3.f90
+  tile-inner-loops-4.f90
+  tile-inner-loops-5.f90
+  tile-inner-loops-6.f90
+  tile-inner-loops-7.f90
+  tile-non-rectangular-1.f90
+  tile-unroll-1.f90
+  unroll-13.f90
+  unroll-1.f90
+  unroll-2.f90
+  unroll-3.f90
+  unroll-4.f90
+  unroll-5.f90
+  unroll-7.f90
+  unroll-8.f90
+  unroll-9.f90
+  unroll-inner-loop-1.f90
+  unroll-no-clause-1.f90
+  unroll-non-rect-1.f90
+  unroll-non-rect-2.f90
+  unroll-simd-1.f90
+  unroll-tile-1.f90
+  unroll-tile-2.f90
+  unroll-tile-inner-1.f90
 )

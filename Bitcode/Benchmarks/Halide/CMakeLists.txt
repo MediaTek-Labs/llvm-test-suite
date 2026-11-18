@@ -10,15 +10,17 @@ if(NOT MSVC)
 endif()
 
 macro(test_img_input img)
-  llvm_test_run(%S/../images/${img}.bytes ${ARGN} %S/${img}_out.bytes)
+  llvm_test_run(%S/images/${img}.bytes ${ARGN} %S/${img}_out.bytes)
   llvm_test_verify(%b/${FPCMP} %S/output/${img}_out.bytes %S/${img}_out.bytes)
 endmacro()
 macro(test_img_data target img)
-  llvm_test_data(${target} ../images/${img}.bytes)
+  llvm_test_data(${target} SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/.. images/${img}.bytes)
   llvm_test_data(${target} output/${img}_out.bytes)
 endmacro()
 
-if(ARCH STREQUAL "x86")
+# Disabled for Apple platforms, since the bitcode's baked-in datalayout is
+# incompatible with Mach-O platforms.
+if(ARCH STREQUAL "x86" AND NOT APPLE)
   add_subdirectory(local_laplacian)
   add_subdirectory(bilateral_grid)
   add_subdirectory(blur)

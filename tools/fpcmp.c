@@ -12,6 +12,7 @@
 
 #include <ctype.h>
 #include <math.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,10 +21,6 @@
 const char *g_program;
 
 /* *** */
-
-typedef int bool;
-#define true ((bool) 1)
-#define false ((bool) 0)
 
 static bool isSignedChar(char C) {
   return (C == '+' || C == '-');
@@ -70,17 +67,13 @@ static const char *AdvanceNumber(const char *StartPos, const char *End) {
   // Decimal separator
   if (Pos < End && *Pos == '.') {
     ++Pos;
+    EndOfNumber = Pos;
 
-    // Post-decimal digits (require at least one when period present)
-    bool HasPostDecimalDigit = false;
+    // Post-decimal digits (optional)
     while (Pos < End && isDigitChar(*Pos)) {
-      HasPostDecimalDigit = true;
-
       ++Pos;
       EndOfNumber = Pos;
     }
-    if (!HasPostDecimalDigit)
-      return EndOfNumber;
   }
 
   // Require a valid number before the exponent.
@@ -219,12 +212,6 @@ char *load_file(const char *path, long *size_out) {
     exit(2);
   }
 
-  /* Avoid malloc(0). */
-  if (size == 0) {
-    *size_out = 0;
-    return 0;
-  }
-
   /* Allocate a buffer for the data. */
   data = malloc(size + 1);
   if (!data) {
@@ -235,7 +222,7 @@ char *load_file(const char *path, long *size_out) {
 
   /* Read in the file contents. */
   data[size] = 0;
-  if (fread(data, size, 1, fp) != 1) {
+  if (size != 0 && fread(data, size, 1, fp) != 1) {
     fprintf(stderr, "%s: error: unable to read data for '%s'\n",
             g_program, path);
     exit(2);
@@ -245,6 +232,27 @@ char *load_file(const char *path, long *size_out) {
   fclose(fp);
   *size_out = size;
   return data;
+}
+
+static bool contains_non_printable_characters(const char *data) {
+  size_t len = strlen(data);
+  for (size_t i = 0; i < len; ++i)
+    if (!isprint(data[i]) && !isspace(data[i]))
+      return true;
+  return false;
+}
+
+static void dump_input(const char *label, const char *data) {
+  if (contains_non_printable_characters(data)) {
+    fprintf(stderr, "\n%s: Contains binary data.\n", label);
+  } else {
+    fprintf(stderr, "\n%s:\n%s", label, data);
+  }
+}
+
+static void dump_inputs(const char *data_a, const char *data_b) {
+  dump_input("Input 1", data_a);
+  dump_input("Input 2", data_b);
 }
 
 int diff_file(const char *path_a, const char *path_b, bool parse_fp,
@@ -356,6 +364,7 @@ int diff_file(const char *path_a, const char *path_b, bool parse_fp,
     fprintf(stderr,
             "%s: Comparison failed, textual difference between '%c' and '%c'\n",
             g_program, F1P[0], F2P[0]);
+    dump_inputs(data_a, data_b);
     free(data_a);
     free(data_b);
     return 1;
@@ -364,6 +373,7 @@ int diff_file(const char *path_a, const char *path_b, bool parse_fp,
     fprintf(stderr,
             "%s: Comparison failed, unexpected end of one of the files\n",
             g_program);
+    dump_inputs(data_a, data_b);
     free(data_a);
     free(data_b);
     return 1;

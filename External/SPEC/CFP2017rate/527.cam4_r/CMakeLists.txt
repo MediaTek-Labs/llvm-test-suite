@@ -55,7 +55,7 @@ if (NOT TARGET cam4_netcdf)
     "${SRC_DIR}/spec_qsort/spec_qsort.c")
   list(REMOVE_ITEM netcdf_sources "${SRC_DIR}/netcdf/ncio.c")
 
-  add_library(cam4_netcdf OBJECT ${netcdf_sources})
+  llvm_test_library(cam4_netcdf OBJECT ${netcdf_sources})
   target_compile_definitions(cam4_netcdf PRIVATE SPEC)
 endif ()
 
@@ -68,6 +68,8 @@ speccpu2017_add_include_dirs(
 # speed test is recompiled due to additional preprocessor flag, but
 # the netcdf modules are in the build directory for the rate test
 include_directories("${CMAKE_CURRENT_BINARY_DIR}/../../CFP2017rate/527.cam4_r")
+
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-implicit-int")
 
 set(CAM4_C_DEFS "-DNO_SHR_VMATH;-DCO2A;-DPERGRO")
 list(APPEND CAM4_C_DEFS "-DPLON=144;-DPLAT=96;-DPLEV=26;-DPCNST=3;-DPCOLS=4")

@@ -1,4 +1,5 @@
 list(APPEND CPPFLAGS -DHAVE_CONFIG_H -I${CMAKE_CURRENT_SOURCE_DIR} -I${CMAKE_CURRENT_SOURCE_DIR}/zlib -DDONT_LOCK_DBDIRS)
+list(APPEND CPPFLAGS -Wno-error=incompatible-pointer-types)
 
 set(INPUT
   inputs/clam.cab
@@ -174,13 +175,20 @@ llvm_multisource(clamscan
   zlib_uncompr.c
   zlib_zutil.c
 )
+set_property(TARGET clamscan PROPERTY C_STANDARD 17)
 if(TARGET_OS STREQUAL "Linux")
   find_package(Intl REQUIRED)
   target_link_libraries(clamscan ${Intl_LIBRARIES})
 endif()
-# zlib fails to build with correctly defined target OS macros.
-# (https://github.com/madler/zlib/pull/895)
-# Disable the compiler extension to workaround the build failure until a zlib
-# source update with the fix.
-target_compile_options(clamscan PRIVATE -fno-define-target-os-macros)
+
+include(CheckCCompilerFlag)
+check_c_compiler_flag(-fno-define-target-os-macros
+                      COMPILER_HAS_NO_DEFINE_TARGET_OS_MACROS)
+if (COMPILER_HAS_NO_DEFINE_TARGET_OS_MACROS)
+  # zlib fails to build with correctly defined target OS macros.
+  # (https://github.com/madler/zlib/pull/895)
+  # Disable the compiler extension to workaround the build failure until a zlib
+  # source update with the fix.
+  target_compile_options(clamscan PRIVATE -fno-define-target-os-macros)
+endif()
 llvm_test_data(clamscan ${INPUT} dbdir)

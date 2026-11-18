@@ -15,6 +15,9 @@ file(GLOB UNIMPLEMENTED_FILES CONFIGURE_DEPENDS
   poly_run_3.f90
 
   # unimplemented: coarray allocation
+  alloc_comp_6.f90
+  alloc_comp_7.f90
+  alloc_comp_8.f90
   allocate_errgmsg.f90
   array_temporary.f90
   get_array.f90
@@ -45,6 +48,7 @@ file(GLOB UNIMPLEMENTED_FILES CONFIGURE_DEPENDS
   failed_images_2.f08
   image_status_2.f08
   stopped_images_2.f08
+  substring_1.f90
   this_image_1.f90
 
   # unimplemented: EVENT POST runtime
@@ -56,6 +60,33 @@ file(GLOB UNIMPLEMENTED_FILES CONFIGURE_DEPENDS
   # unimplemented: CriticalConstruct implementation
   sync_1.f90
   sync_3.f90
+
+  # unimplemented: lowering a reference to a coarray objcet
+  associate_1.f90
+  pr85510.f90
+
+  # unimplemented: dummy argument coarray in procedure interface
+  class_1.f90
+  complex_1.f90
+  dummy_3.f90
+  pr81265.f90
+
+  # unimplemented: allocation of a coarray object
+  get_with_fn_parameter.f90
+  get_with_scalar_fn.f90
+  move_alloc_2.f90
+  ptr_comp_6.f08
+  select_type_1.f90
+  select_type_3.f90
+  sizeof_1.f90
+
+  # unimplemented: non-ALLOCATABLE SAVE Coarray outside the main program
+  submodule_1.f90
+  registering_1.f90
+  
+  # unimplemented: Coarray with an allocatable direct component and/or requiring finalization
+  alloc_comp_9.f90
+  alloc_comp_10.f90
 )
 
 # Some tests in the suite may be unsupported for one reason or another.
@@ -127,6 +158,11 @@ file(GLOB SKIPPED_FILES CONFIGURE_DEPENDS
   # coshape
   poly_run_2.f90
 
+  # error: No intrinsic or user-defined ASSIGNMENT(=) matches operand types
+  # TYPE(team_type) and TYPE(__builtin_team_type)
+  coindexed_3.f08
+  coindexed_5.f90
+
   # --------------------------------------------------------------------------
   #
   # These tests are skipped because they are intended to be additional sources
@@ -144,6 +180,11 @@ file(GLOB SKIPPED_FILES CONFIGURE_DEPENDS
   # codimension_2a.f90 and codimension_2b.f90. This is almost certainly a bug
   # in the build files in llvm-test-suite/Fortran/gfortran.
   codimension_2.f90
+  
+  # Need to pass -fcoarray to enable coarray declaration
+  pr93671.f90
+  proc_pointer_assign_1.f90
+  ptr_comp_5.f08
 )
 
 # These tests fail at runtime when they should pass.

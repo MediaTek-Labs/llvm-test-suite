@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Tool to filter, organize, compare and display benchmarking results. Usefull
 for smaller datasets. It works great with a few dozen runs it is not designed to
 deal with hundreds.
@@ -26,7 +26,7 @@ def read_lit_json(filename):
     info_columns = ["hash"]
     # Pass1: Figure out metrics (= the column index)
     if "tests" not in jsondata:
-        print("%s: Could not find toplevel 'tests' key")
+        print("%s: Could not find toplevel 'tests' key" % filename, file=sys.stderr)
         sys.exit(1)
     for test in jsondata["tests"]:
         name = test.get("name")
@@ -37,7 +37,10 @@ def read_lit_json(filename):
             sys.stderr.write("Error: Multiple tests with name '%s'\n" % name)
             sys.exit(1)
         if "metrics" not in test:
-            print("Warning: '%s' has no metrics, skipping!" % test["name"])
+            print(
+                "Warning: '%s' has no metrics, skipping!" % test["name"],
+                file=sys.stderr,
+            )
             continue
         names.add(name)
         for name in test["metrics"].keys():
@@ -120,15 +123,38 @@ def readmulti(filenames):
     return d
 
 
-def get_values(values):
-    # Create data view without diff column.
-    if "diff" in values.columns:
-        values = values[[c for c in values.columns if c != "diff"]]
+def merge_values(values, merge_function):
+    # Drop the "hash" column because it's irreducible for averages.
+    if merge_function in [pd.DataFrame.mean, pd.DataFrame.median] and "hash" in values.columns:
+        values = values[[c for c in values.columns if c != "hash"]]
+    return values.groupby(level=1).apply(merge_function)
+
+
+def get_values(values, lhs_name=None, rhs_name=None):
+    exclude_cols = [
+        "diff", "t-value", "p-value", "significant",
+        f'std_{lhs_name}', f'std_{rhs_name}',
+        f'cv_{lhs_name}', f'cv_{rhs_name}',
+        "diff_ci_rel", "diff_ci_abs",
+    ]
+    values = values[[c for c in values.columns if c not in exclude_cols]]
     has_two_runs = len(values.columns) == 2
     if has_two_runs:
         return (values.iloc[:, 0], values.iloc[:, 1])
     else:
         return (values.min(axis=1), values.max(axis=1))
+
+
+def get_default_metric(data, second_data=None):
+    """Find a default metric to use if none specified.
+       data: Primary dataframe to check
+       second_data: Optional secondary dataframe (for 'vs' mode with lhs/rhs)
+    """
+    defaults = ["Exec_Time", "exec_time", "Value", "Runtime"]
+    for defkey in defaults:
+        if defkey in data.columns or (second_data is not None and defkey in second_data.columns):
+            return [defkey]
+    return []
 
 
 def add_diff_column(metric, values, absolute_diff=False):
@@ -143,14 +169,111 @@ def add_diff_column(metric, values, absolute_diff=False):
     return values
 
 
-def add_geomean_row(metrics, data, dataout):
+def compute_statistics(lhs_d, rhs_d, lhs_name, rhs_name, metrics, alpha, coeff_var, diff_conf_int):
+    stats_dict = {}
+
+    for metric in metrics:
+        if metric not in lhs_d.columns or metric not in rhs_d.columns:
+            continue
+
+        stats_dict[metric] = {}
+
+        # Group by program (more efficient than unique+loc)
+        for program, lhs_group in lhs_d.groupby(level=1):
+            lhs_values = lhs_group[metric].dropna()
+            rhs_values = rhs_d.loc[(slice(None), program), metric].dropna()
+
+            # Compute t-test if we have enough samples
+            if len(lhs_values) >= 2 and len(rhs_values) >= 2:
+                lhs_std = lhs_values.std(ddof=1)
+                rhs_std = rhs_values.std(ddof=1)
+                lhs_mean = lhs_values.mean()
+                rhs_mean = rhs_values.mean()
+                if coeff_var:
+                    stats_dict[metric][program] = {
+                        f'cv_{lhs_name}': lhs_std / lhs_mean if lhs_mean != 0 else float('nan'),
+                        f'cv_{rhs_name}': rhs_std / rhs_mean if rhs_mean != 0 else float('nan'),
+                    }
+                else:
+                    stats_dict[metric][program] = {
+                        f'std_{lhs_name}': lhs_std,
+                        f'std_{rhs_name}': rhs_std,
+                    }
+                ttest = stats.ttest_ind(lhs_values, rhs_values)
+                stats_dict[metric][program]['t-value'] = ttest.statistic
+                stats_dict[metric][program]['p-value'] = ttest.pvalue
+                stats_dict[metric][program]['significant'] = "Y" if ttest.pvalue < alpha else "N"
+
+                if diff_conf_int:
+                    ci = ttest.confidence_interval(1 - alpha)
+                    # CI is for mean(lhs)-mean(rhs); negate for rhs-lhs
+                    abs_lo = -ci.high
+                    abs_hi = -ci.low
+                    if diff_conf_int == "relative":
+                        if lhs_mean != 0:
+                            ci_lo = abs_lo / lhs_mean
+                            ci_hi = abs_hi / lhs_mean
+                        else:
+                            ci_lo = float('nan')
+                            ci_hi = float('nan')
+                        stats_dict[metric][program]['diff_ci_rel'] = (ci_lo, ci_hi)
+                    else:
+                        stats_dict[metric][program]['diff_ci_abs'] = (abs_lo, abs_hi)
+            else:
+                if coeff_var:
+                    stats_dict[metric][program] = {
+                        f'cv_{lhs_name}': float('nan'),
+                        f'cv_{rhs_name}': float('nan')
+                    }
+                else:
+                    stats_dict[metric][program] = {
+                        f'std_{lhs_name}': float('nan'),
+                        f'std_{rhs_name}': float('nan')
+                    }
+                stats_dict[metric][program]['t-value'] = float('nan')
+                stats_dict[metric][program]['p-value'] = float('nan')
+                stats_dict[metric][program]['significant'] = ""
+
+    stat_col_names = []
+    if coeff_var:
+        stat_col_names += [f'cv_{lhs_name}', f'cv_{rhs_name}']
+    else:
+        stat_col_names += [f'std_{lhs_name}', f'std_{rhs_name}']
+    stat_col_names += ['t-value', 'p-value', 'significant']
+    if diff_conf_int == "relative":
+        stat_col_names += ['diff_ci_rel']
+    elif diff_conf_int == "absolute":
+        stat_col_names += ['diff_ci_abs']
+
+    return stats_dict, stat_col_names
+
+
+def add_precomputed_statistics(data, stats_dict, stat_col_names):
+    """Add precomputed statistics to the unstacked dataframe."""
+    for metric in data.columns.levels[0]:
+        if metric not in stats_dict:
+            continue
+
+        for stat_name in stat_col_names:
+            values = []
+            for program in data.index:
+                if program in stats_dict[metric]:
+                    values.append(stats_dict[metric][program][stat_name])
+                else:
+                    values.append(float('nan') if stat_name != 'significant' else "")
+            data[(metric, stat_name)] = values
+
+    return data
+
+
+def add_geomean_row(metrics, data, dataout, lhs_name, rhs_name):
     """
     Normalize values1 over values0, compute geomean difference and add a
     summary row to dataout.
     """
     gm = pd.DataFrame(index=[GEOMEAN_ROW], columns=dataout.columns, dtype="float64")
     for metric in metrics:
-        values0, values1 = get_values(data[metric])
+        values0, values1 = get_values(data[metric], lhs_name, rhs_name)
         # Avoid infinite values in the diff and instead use NaN, as otherwise
         # the computation of the geometric mean will fail.
         values0 = values0.replace({0: float("NaN")})
@@ -176,6 +299,20 @@ def filter_same_hash(data, key="hash"):
     return data.groupby(level=1).filter(lambda x: x[key].nunique() != 1)
 
 
+def select_patterns(data, patterns):
+    selected = []
+    program_index = data.index.get_level_values(1).astype(str).to_series().str
+    for pattern in patterns:
+        try:
+            mask = program_index.contains(pattern, regex=True, na=False)
+        except re.error as e:
+            sys.stderr.write("Invalid regular expression for --pattern: %s\n" % e)
+            sys.exit(1)
+
+        selected.append(data[mask.values])
+
+    return pd.concat(selected, axis=0)
+
 def filter_blacklist(data, blacklist):
     return data.loc[~(data.index.get_level_values(1).isin(blacklist))]
 
@@ -185,7 +322,7 @@ def print_filter_stats(reason, before, after):
     n_after = len(after.groupby(level=1))
     n_filtered = n_before - n_after
     if n_filtered != 0:
-        print("%s: %s (filtered out)" % (reason, n_filtered))
+        print("%s: %s (filtered out)" % (reason, n_filtered), file=sys.stderr)
 
 
 # Truncate a string to a maximum length by keeping a prefix, a suffix and ...
@@ -203,7 +340,7 @@ def truncate(string, prefix_len, suffix_len):
 def determine_common_prefix_suffix(names, min_len=8):
     if len(names) <= 1:
         return (0, 0)
-    name0 = names[0]
+    name0 = names.iloc[0]
     prefix = name0
     prefix_len = len(name0)
     suffix = name0
@@ -235,19 +372,29 @@ def format_relative_diff(value):
 
 def print_result(
     d,
+    split_by_metric,
     limit_output=True,
     shorten_names=True,
     minimal_names=False,
     show_diff_column=True,
+    only_changed=False,
     sortkey="diff",
     sort_by_abs=True,
     absolute_diff=False,
+    lhs_name="lhs",
+    rhs_name="rhs",
+    only_significant=False,
+    format=None,
 ):
     metrics = d.columns.levels[0]
     if sort_by_abs:
         d = d.sort_values(by=(metrics[0], sortkey), key=pd.Series.abs, ascending=False)
     else:
         d = d.sort_values(by=(metrics[0], sortkey), ascending=False)
+
+    if only_significant:
+        if (metrics[0], 'significant') in d.columns:
+            d = d[d[(metrics[0], 'significant')] == 'Y']
 
     # Ensure that the columns are grouped by metric (rather than having the
     # diffs at the end of the line).
@@ -265,6 +412,38 @@ def print_result(
     if not absolute_diff:
         for m in metrics:
             formatters[(m, "diff")] = format_relative_diff
+    # Add formatters for statistical columns
+    for m in metrics:
+        if (m, "p-value") in dataout.columns:
+            formatters[(m, "p-value")] = lambda x: "%.4f" % x if not pd.isna(x) else ""
+        if (m, "t-value") in dataout.columns:
+            formatters[(m, "t-value")] = lambda x: "%.3f" % x if not pd.isna(x) else ""
+        if (m, f'std_{lhs_name}') in dataout.columns:
+            formatters[(m, f'std_{lhs_name}')] = lambda x: "%.3f" % x if not pd.isna(x) else ""
+        if (m, f'std_{rhs_name}') in dataout.columns:
+            formatters[(m, f'std_{rhs_name}')] = lambda x: "%.3f" % x if not pd.isna(x) else ""
+        if (m, f'cv_{lhs_name}') in dataout.columns:
+            formatters[(m, f'cv_{lhs_name}')] = lambda x: "%4.1f%%" % (x * 100) if not pd.isna(x) else ""
+        if (m, f'cv_{rhs_name}') in dataout.columns:
+            formatters[(m, f'cv_{rhs_name}')] = lambda x: "%4.1f%%" % (x * 100) if not pd.isna(x) else ""
+        if (m, "diff_ci_rel") in dataout.columns:
+            formatters[(m, "diff_ci_rel")] = lambda x: \
+                "[%4.1f%%, %4.1f%%]" % (x[0] * 100, x[1] * 100) \
+                if isinstance(x, tuple) and not (pd.isna(x[0]) or pd.isna(x[1])) else ""
+        if (m, "diff_ci_abs") in dataout.columns:
+            formatters[(m, "diff_ci_abs")] = lambda x: \
+                "[%4.3f, %4.3f]" % (x[0], x[1]) \
+                if isinstance(x, tuple) and not (pd.isna(x[0]) or pd.isna(x[1])) else ""
+
+    # Filter out rows where the metrics are the same across all results.
+    if only_changed:
+        changed = pd.Series(False, index=dataout.index)
+        for metric in metrics:
+            v0, v1 = get_values(dataout[metric], lhs_name, rhs_name)
+            equal = v0.eq(v1) | (v0.isna() & v1.isna())
+            changed |= ~equal
+        dataout = dataout[changed]
+
     # Turn index into a column so we can format it...
     formatted_program = dataout.index.to_series()
     if shorten_names:
@@ -295,7 +474,7 @@ def print_result(
     # as it will otherwise interfere with common prefix/suffix computation.
     if show_diff_column and not absolute_diff:
         # geometric mean only makes sense for relative differences.
-        dataout = add_geomean_row(metrics, d, dataout)
+        dataout = add_geomean_row(metrics, d, dataout, lhs_name, rhs_name)
 
     def float_format(x):
         if x == "":
@@ -304,16 +483,44 @@ def print_result(
 
     pd.set_option("display.max_colwidth", 0)
     pd.set_option("display.width", 0)
-    # Print an empty value instead of NaN (for the geomean row).
-    out = dataout.to_string(
-        index=False,
-        justify="left",
-        na_rep="",
-        float_format=float_format,
-        formatters=formatters,
-    )
-    print(out)
-    print(d.describe())
+
+    exclude_from_summary = [
+        "t-value", "p-value", "significant",
+        f'std_{lhs_name}', f'std_{rhs_name}',
+        f'cv_{lhs_name}', f'cv_{rhs_name}',
+        'diff_ci_rel', 'diff_ci_abs',
+    ]
+
+    if format == "md":
+        dataout.to_markdown(buf=sys.stdout, index=False)
+    elif format == "csv":
+        dataout.to_csv(sys.stdout, index=False)
+    else:
+        # Print an empty value instead of NaN (for the geomean row).
+        if split_by_metric:
+            for m in metrics:
+                metric_data = dataout[["Program", m]]
+                out = metric_data.to_string(
+                    index=False,
+                    justify="left",
+                    na_rep="",
+                    float_format=float_format,
+                    formatters=formatters,
+                )
+                print(f"{out}\n")
+        else:
+            out = dataout.to_string(
+                index=False,
+                justify="left",
+                na_rep="",
+                float_format=float_format,
+                formatters=formatters,
+            )
+            print(out)
+
+        # Print a summary pivoted by metric
+        d_summary = d.drop(columns=exclude_from_summary, level=1, errors="ignore")
+        print(d_summary.describe())
 
 
 def main():
@@ -321,6 +528,19 @@ def main():
     parser.add_argument("-a", "--all", action="store_true")
     parser.add_argument("-f", "--full", action="store_true")
     parser.add_argument("-m", "--metric", action="append", dest="metrics", default=[])
+    parser.add_argument(
+        "-p",
+        "--pattern",
+        action="append",
+        dest="patterns",
+        default=[],
+        help="Show only results whose program name matches any of the specified regexes.",
+    )
+    parser.add_argument(
+        "--split-by-metric",
+        action="store_true",
+        help="Split the output view vertically by metric, to fit more columns on smaller screens",
+    )
     parser.add_argument(
         "--nodiff", action="store_false", dest="show_diff", default=None
     )
@@ -350,6 +570,12 @@ def main():
         dest="merge_function",
         const=pd.DataFrame.mean,
         default=pd.DataFrame.min,
+    )
+    parser.add_argument(
+        "--merge-median",
+        action="store_const",
+        dest="merge_function",
+        const=pd.DataFrame.median,
     )
     parser.add_argument(
         "--merge-min",
@@ -387,6 +613,55 @@ def main():
         default=False,
         help="Don't use abs() when sorting results",
     )
+    parser.add_argument(
+        "--statistics",
+        action="store_true",
+        dest="statistics",
+        default=False,
+        help="Add statistical analysis columns (std, t-value, p-value, significance)",
+    )
+    parser.add_argument(
+        "--alpha",
+        type=float,
+        default=0.05,
+        help="Significance level for statistical tests (default: 0.05)",
+    )
+    parser.add_argument(
+        "--only-significant",
+        action="store_true",
+        dest="only_significant",
+        default=False,
+        help="Show only significant results when used with --statistics",
+    )
+    parser.add_argument(
+        "--coefficient-variation",
+        action="store_true",
+        dest="coefficient_variation",
+        default=False,
+        help="Compute relative coefficient of variation (%%) rather than absolute stddev",
+    )
+    parser.add_argument(
+        "--diff-confidence-interval",
+        choices=["relative", "absolute"],
+        nargs="?",
+        const="relative",
+        default=None,
+        dest="diff_confidence_interval",
+        help="Show confidence interval for the difference (default: relative)",
+    )
+    parser.add_argument(
+        "--only-changed",
+        action="store_true",
+        dest="only_changed",
+        default=False,
+        help="Show only results where a metric has changed"
+    )
+    parser.add_argument(
+        "--format",
+        choices=["text", "csv", "md"],
+        default="text",
+        help="Output results in a specific format. csv and md require the tabulate package.",
+    )
     config = parser.parse_args()
 
     if config.show_diff is None:
@@ -412,16 +687,33 @@ def main():
 
     # Read inputs
     files = config.files
+    stats_dict = None
+    stat_col_names = None
     if "vs" in files:
         split = files.index("vs")
         lhs = files[0:split]
         rhs = files[split + 1 :]
 
-        # Filter minimum of lhs and rhs
+        # Combine the multiple left and right hand sides.
         lhs_d = readmulti(lhs)
-        lhs_merged = lhs_d.groupby(level=1).apply(config.merge_function)
         rhs_d = readmulti(rhs)
-        rhs_merged = rhs_d.groupby(level=1).apply(config.merge_function)
+
+        # Compute statistics on raw data before merging (if requested)
+        if config.statistics:
+            metrics_for_stats = config.metrics if len(config.metrics) > 0 else get_default_metric(lhs_d, rhs_d)
+            stats_dict, stat_col_names = compute_statistics(
+                lhs_d, rhs_d,
+                lhs_name=config.lhs_name,
+                rhs_name=config.rhs_name,
+                metrics=metrics_for_stats,
+                alpha=config.alpha,
+                coeff_var=config.coefficient_variation,
+                diff_conf_int=config.diff_confidence_interval,
+            )
+
+        # Merge data
+        lhs_merged = merge_values(lhs_d, config.merge_function)
+        rhs_merged = merge_values(rhs_d, config.merge_function)
 
         # Combine to new dataframe
         data = pd.concat(
@@ -435,11 +727,7 @@ def main():
     # Decide which metric to display / what is our "main" metric
     metrics = config.metrics
     if len(metrics) == 0:
-        defaults = ["Exec_Time", "exec_time", "Value", "Runtime"]
-        for defkey in defaults:
-            if defkey in data.columns:
-                metrics = [defkey]
-                break
+        metrics = get_default_metric(data)
     if len(metrics) == 0:
         sys.stderr.write("No default metric found and none specified\n")
         sys.stderr.write("Available metrics:\n")
@@ -457,7 +745,7 @@ def main():
     # Filter data
     proggroup = data.groupby(level=1)
     initial_size = len(proggroup.indices)
-    print("Tests: %s" % (initial_size,))
+    print("Tests: %s" % (initial_size,), file=sys.stderr)
     if config.filter_failed and hasattr(data, "Exec"):
         newdata = filter_failed(data)
         print_filter_stats("Failed", data, newdata)
@@ -475,6 +763,10 @@ def main():
         newdata = filter_same_hash(data)
         print_filter_stats("Same hash", data, newdata)
         data = newdata
+    if config.patterns:
+        newdata = select_patterns(data, config.patterns)
+        print_filter_stats("In filter patterns", data, newdata)
+        data = newdata
     if config.filter_blacklist:
         blacklist = open(config.filter_blacklist).readlines()
         blacklist = [line.strip() for line in blacklist]
@@ -483,10 +775,10 @@ def main():
         data = newdata
     final_size = len(data.groupby(level=1))
     if final_size != initial_size:
-        print("Remaining: %d" % (final_size,))
+        print("Remaining: %d" % (final_size,), file=sys.stderr)
 
     # Reduce / add columns
-    print("Metric: %s" % (",".join(metrics),))
+    print("Metric: %s" % (",".join(metrics),), file=sys.stderr)
     if len(metrics) > 0:
         data = data[metrics]
 
@@ -495,24 +787,33 @@ def main():
     for metric in data.columns.levels[0]:
         data = add_diff_column(metric, data, absolute_diff=config.absolute_diff)
 
+    if config.statistics and stats_dict is not None:
+        data = add_precomputed_statistics(data, stats_dict, stat_col_names)
+
     sortkey = "diff"
     # TODO: should we still be sorting by diff even if the diff is hidden?
     if len(config.files) == 1:
         sortkey = data.columns.levels[1][0]
 
     # Print data
-    print("")
+    print("", file=sys.stderr)
     shorten_names = not config.full
     limit_output = (not config.all) and (not config.full)
     print_result(
         data,
+        config.split_by_metric,
         limit_output,
         shorten_names,
         config.minimal_names,
         config.show_diff,
+        config.only_changed,
         sortkey,
         config.no_abs_sort,
         config.absolute_diff,
+        config.lhs_name,
+        config.rhs_name,
+        config.only_significant,
+        config.format,
     )
 
 

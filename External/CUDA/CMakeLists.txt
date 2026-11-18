@@ -5,16 +5,20 @@ llvm_externals_find(TEST_SUITE_CUDA_ROOT "cuda" "CUDA prerequisites")
 set(SUPPORTED_GPU_CUDA_7_0
   sm_20 sm_21
   sm_30 sm_32 sm_35 sm_37
-  sm_50 sm_52 sm_53)
+  sm_50 sm_52 sm_53
+)
 set(SUPPORTED_GPU_CUDA_7_5 ${SUPPORTED_GPU_CUDA_7_0})
 
 set(SUPPORTED_GPU_CUDA_8_0 ${SUPPORTED_GPU_CUDA_7_5}
-  sm_60 sm_61 sm_62)
+  sm_60 sm_61 sm_62
+)
 
 set(SUPPORTED_GPU_CUDA_9_0 ${SUPPORTED_GPU_CUDA_8_0}
-  sm_70)
+  sm_70
+)
 set(SUPPORTED_GPU_CUDA_9_1 ${SUPPORTED_GPU_CUDA_9_0}
-  sm_72)
+  sm_72
+)
 # 9.2 removed sm_2x
 set(SUPPORTED_GPU_CUDA_9_2
   sm_30 sm_32 sm_35 sm_37
@@ -24,22 +28,33 @@ set(SUPPORTED_GPU_CUDA_9_2
 )
 
 set(SUPPORTED_GPU_CUDA_10_0 ${SUPPORTED_GPU_CUDA_9_2}
-  sm_75)
+  sm_75
+)
 set(SUPPORTED_GPU_CUDA_10_1 ${SUPPORTED_GPU_CUDA_10_0})
 set(SUPPORTED_GPU_CUDA_10_2 ${SUPPORTED_GPU_CUDA_10_1})
 
-set(SUPPORTED_GPU_CUDA_11_0 ${SUPPORTED_GPU_CUDA_10_2}
-  sm_80)
+# CUDA-11.0 no longer supports sm_30 and sm_32 GPUs.
+set(SUPPORTED_GPU_CUDA_11_0
+  sm_35 sm_37
+  sm_50 sm_52 sm_53
+  sm_60 sm_61 sm_62
+  sm_70 sm_72 sm_75
+  sm_80
+)
 set(SUPPORTED_GPU_CUDA_11_1 ${SUPPORTED_GPU_CUDA_11_0}
-  sm_86)
+  sm_86
+)
 set(SUPPORTED_GPU_CUDA_11_2 ${SUPPORTED_GPU_CUDA_11_1})
 set(SUPPORTED_GPU_CUDA_11_3 ${SUPPORTED_GPU_CUDA_11_2})
 set(SUPPORTED_GPU_CUDA_11_4 ${SUPPORTED_GPU_CUDA_11_3})
-set(SUPPORTED_GPU_CUDA_11_5 ${SUPPORTED_GPU_CUDA_11_4})
+set(SUPPORTED_GPU_CUDA_11_5 ${SUPPORTED_GPU_CUDA_11_4}
+  sm_87
+)
 set(SUPPORTED_GPU_CUDA_11_6 ${SUPPORTED_GPU_CUDA_11_5})
 set(SUPPORTED_GPU_CUDA_11_7 ${SUPPORTED_GPU_CUDA_11_6})
 set(SUPPORTED_GPU_CUDA_11_8 ${SUPPORTED_GPU_CUDA_11_7}
-  sm_89 sm_90)
+  sm_89 sm_90
+)
 
 # CUDA-12.0 no longer supports sm_3x and older GPUs.
 set(SUPPORTED_GPU_CUDA_12_0
@@ -47,13 +62,31 @@ set(SUPPORTED_GPU_CUDA_12_0
   sm_60 sm_61 sm_62
   sm_70 sm_72 sm_75
   sm_80 sm_86 sm_87 sm_89
-  sm_90 sm_90a
+  sm_90
 )
 set(SUPPORTED_GPU_CUDA_12_1 ${SUPPORTED_GPU_CUDA_12_0})
 set(SUPPORTED_GPU_CUDA_12_2 ${SUPPORTED_GPU_CUDA_12_1})
 set(SUPPORTED_GPU_CUDA_12_3 ${SUPPORTED_GPU_CUDA_12_2})
+set(SUPPORTED_GPU_CUDA_12_4 ${SUPPORTED_GPU_CUDA_12_3})
+set(SUPPORTED_GPU_CUDA_12_5 ${SUPPORTED_GPU_CUDA_12_4})
+set(SUPPORTED_GPU_CUDA_12_6 ${SUPPORTED_GPU_CUDA_12_5})
+set(SUPPORTED_GPU_CUDA_12_7 ${SUPPORTED_GPU_CUDA_12_6})
+set(SUPPORTED_GPU_CUDA_12_8 ${SUPPORTED_GPU_CUDA_12_7}
+  sm_100 sm_120
+)
+set(SUPPORTED_GPU_CUDA_12_9 ${SUPPORTED_GPU_CUDA_12_8}
+  sm_101 sm_121
+)
 
-set(CUDA_NEW_DRIVER ON CACHE BOOL "Use the new Clang offloading Driver")
+# CUDA-13.0 no longer supports Maxwell, Pascal, and Volta.
+# It also renames sm_101 to sm_110.
+set(SUPPORTED_GPU_CUDA_13_0
+  sm_75
+  sm_80 sm_86 sm_87 sm_89
+  sm_90
+  sm_100 sm_110 sm_120 sm_121
+)
+set(SUPPORTED_GPU_CUDA_13_1 ${SUPPORTED_GPU_CUDA_13_0})
 
 # Create targets for CUDA tests that are part of the test suite.
 macro(create_local_cuda_tests VariantSuffix)
@@ -151,14 +184,19 @@ function(create_thrust_tests VariantSuffix)
   add_dependencies(cuda-tests-thrust ${_ThrustMainTarget})
 endfunction()
 
-# Create set of tests for a given {CUDA,C++ standard,C++ library} tuple.
-function(create_cuda_test_variant Std VariantSuffix)
+# Create tests for a given {CUDA, C++ standard, C++ library, RDC mode} tuple.
+function(create_cuda_test_variant Std VariantSuffix RdcMode)
   message(STATUS "Creating CUDA test variant ${VariantSuffix}")
   add_custom_target(cuda-tests-${VariantSuffix}
     COMMENT "Build CUDA test variant ${VariantSuffix}")
 
   set(VariantLibs ${_Cuda_Libs} ${_Stdlib_Libs})
   set(VariantCPPFLAGS ${_Cuda_CPPFLAGS} ${_Std_CPPFLAGS} ${_Stdlib_CPPFLAGS})
+  set(_Cuda_LDFLAGS)
+  if(RdcMode STREQUAL "rdc")
+    list(APPEND VariantCPPFLAGS -fgpu-rdc)
+    list(APPEND _Cuda_LDFLAGS --offload-link --cuda-path=${_CudaPath})
+  endif()
   list(APPEND LDFLAGS ${_Cuda_LDFLAGS} ${_Std_LDFLAGS} ${_Stdlib_LDFLAGS})
 
   # Create a separate test target for simple tests that can be built/tested quickly.
@@ -295,7 +333,7 @@ macro(create_cuda_tests)
   foreach(_CudaPath ${CUDA_PATHS})
     get_version(_CudaVersion ${_CudaPath})
     set(_Cuda_Suffix "cuda-${_CudaVersion}")
-    set(_Cuda_CPPFLAGS --cuda-path=${_CudaPath} -I${_CudaPath}/include)
+    set(_Cuda_CPPFLAGS --cuda-path=${_CudaPath} -I${_CudaPath}/include -xcuda)
     # clear the list of GPUs to compile for.
     set(_CudaArchFlags)
     set(_CudaArchList)
@@ -313,13 +351,12 @@ macro(create_cuda_tests)
       continue()
     endif()
     list(APPEND _Cuda_CPPFLAGS ${_CudaArchFlags})
-    if (CUDA_NEW_DRIVER)
-      list(APPEND _Cuda_CPPFLAGS -fgpu-rdc --offload-new-driver)
-      list(APPEND _Cuda_LDFLAGS --offload-new-driver)
-    endif()
 
     set(_Cuda_Libs cudart-${_CudaVersion})
     foreach(_Std IN ITEMS "c++98" "c++11" "c++14" "c++17" "c++20")
+      if (_Std STREQUAL "c++98" AND _CudaVersion VERSION_GREATER_EQUAL "13.0")
+        continue()
+      endif()
       set(_Std_Suffix "${_Std}")
       set(_Std_CPPFLAGS -std=${_Std})
       set(_Std_LDFLAGS -std=${_Std})
@@ -341,7 +378,10 @@ macro(create_cuda_tests)
           list(APPEND _Stdlib_CPPFLAGS -DSTDLIB_VERSION=2014)
         endif()
 
-        create_cuda_test_variant(${_Std} "${_Cuda_Suffix}-${_Std_Suffix}-${_Gcc_Suffix}")
+        foreach(_RdcMode IN ITEMS no-rdc rdc)
+          create_cuda_test_variant(${_Std}
+            "${_Cuda_Suffix}-${_Std_Suffix}-${_Gcc_Suffix}-${_RdcMode}" ${_RdcMode})
+        endforeach()
       endforeach()
 
       if(HAVE_LIBCXX)
@@ -353,7 +393,10 @@ macro(create_cuda_tests)
             -DSTDLIB_VERSION=2017 -D_ALLOW_UNSUPPORTED_LIBCPP)
         set(_Stdlib_LDFLAGS  -stdlib=libc++)
         set(_Stdlib_Libs libcxx)
-        create_cuda_test_variant(${_Std} "${_Cuda_Suffix}-${_Std_Suffix}-libc++")
+        foreach(_RdcMode IN ITEMS no-rdc rdc)
+          create_cuda_test_variant(${_Std}
+            "${_Cuda_Suffix}-${_Std_Suffix}-libc++-${_RdcMode}" ${_RdcMode})
+        endforeach()
       endif()
     endforeach()
   endforeach()

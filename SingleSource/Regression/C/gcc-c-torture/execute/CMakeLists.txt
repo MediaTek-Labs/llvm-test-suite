@@ -1,3 +1,5 @@
+include(CheckCSourceCompiles)
+
 add_subdirectory(ieee)
 
 # GCC C Torture Suite is conventionally run without warnings
@@ -96,6 +98,12 @@ file(GLOB UnsupportedTests CONFIGURE_DEPENDS
   #     dx[size] != 0x12345678) is UB on its own.
   921202-1.c
 
+  # UB: Use of uninitialized variables does not guarantee any specific behavior.
+  20030404-1.c
+  pr34099.c
+  pr34099-2.c
+  pr43629.c
+
   # The following all expect very specific optimiser behavior from the compiler
 
   # __builtin_return_address(n) with n > 0 not guaranteed to give expected result
@@ -147,6 +155,23 @@ file(GLOB UnsupportedTests CONFIGURE_DEPENDS
   frame-address.c
 )
 list(APPEND TestsToSkip ${UnsupportedTests})
+
+# Several tests are not compatible with the ptrauth_indirect_gotos feature.
+# Compiling them with that feature enabled would result in the following error:
+# error: addition of address-of-label expressions is not supported with ptrauth indirect gotos
+# Check if the feature is present and if yes, skip build of unsupported tests.
+check_c_source_compiles("
+  #if __has_feature(ptrauth_indirect_gotos)
+  int main() { return 0; }
+  #else
+  #error \"\"
+  #endif
+  "
+  PTRAUTH_INDIRECT_GOTOS)
+if (PTRAUTH_INDIRECT_GOTOS)
+  file(GLOB PtrauthIndirectGotosNonCompTests CONFIGURE_DEPENDS 920501-3.c pr70460.c)
+  list(APPEND TestsToSkip ${PtrauthIndirectGotosNonCompTests})
+endif()
 
 # Tests where clang currently has bugs or issues
 file(GLOB FailingTests CONFIGURE_DEPENDS
@@ -296,6 +321,15 @@ if(ARCH MATCHES "SystemZ")
     20030323-1.c
   )
 
+  if(TARGET_OS STREQUAL "OS390")
+    file(GLOB SystemZZOSTestsToSkip CONFIGURE_DEPENDS
+      # error: Only aliases to functions are supported in GOFF.
+      alias-2.c
+      alias-4.c
+    )
+    list(APPEND SystemZTestsToSkip ${SystemZZOSTestsToSkip})
+  endif()
+
   list(APPEND TestsToSkip ${SystemZTestsToSkip})
 endif()
 
@@ -335,6 +369,20 @@ if(ARCH MATCHES "ARM")
   )
 
   list(APPEND TestsToSkip ${ARMTestsToSkip})
+endif()
+
+if(ARCH MATCHES "Hexagon")
+    file(GLOB HexagonTestsToSkip CONFIGURE_DEPENDS
+	990127-1.c
+	alloca-1.c
+	va-arg-22.c
+	# No support for __int128 on Hexagon
+	pr84748.c
+	built-in-setjmp.c
+	pr84521.c
+  )
+
+  list(APPEND TestsToSkip ${HexagonTestsToSkip})
 endif()
 
 # Darwin Test Blacklist

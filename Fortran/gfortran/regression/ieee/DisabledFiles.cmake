@@ -28,9 +28,6 @@ file(GLOB UNIMPLEMENTED_FILES CONFIGURE_DEPENDS
   large_2.f90
   rounding_1.f90
   rounding_3.f90
-  signaling_1.f90
-  signaling_2.f90
-  signaling_3.f90
 
   # unimplemented: no math runtime available for 'sqrt(f80)'
   large_1.f90
@@ -53,8 +50,10 @@ file(GLOB SKIPPED_FILES CONFIGURE_DEPENDS
   ieee_5.f90
   intrinsics_1.f90
   intrinsics_2.F90
-  large_4.f90
   underflow_1.f90
+
+  # error: Actual argument for 'mold=' has bad type 'UNSIGNED'
+  out_of_range.f90
 
   # --------------------------------------------------------------------------
   #
@@ -63,6 +62,19 @@ file(GLOB SKIPPED_FILES CONFIGURE_DEPENDS
   # conditionally enabling them if libquadmath is available.
 
   ieee_9.f90
+
+  # --------------------------------------------------------------------------
+  #
+  # These tests cause linker errors with undefined references to ieee_*
+  # functions. This may be a configuration issue, but disable it for now until
+  # that can be determined.
+  comparisons_1.f90
+  comparisons_2.f90
+  comparisons_3.F90
+  minmax_1.f90
+  minmax_2.f90
+  minmax_3.f90
+  minmax_4.f90
 )
 
 # There are currently no failing files.

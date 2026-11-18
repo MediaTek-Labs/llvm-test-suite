@@ -23,6 +23,7 @@
 
 
 /* Array initialization. */
+POLYBENCH_GCC_FP_CONTRACT_OFF
 static
 void init_array (int m, int n,
 		 DATA_TYPE POLYBENCH_2D(A,N,M,n,m),
@@ -98,6 +99,7 @@ void kernel_bicg(int m, int n,
 // NOTE: FMA_DISABLED is true for targets where FMA contraction causes
 // discrepancies which cause the accuracy checks to fail.
 // In this case, the test runs with the option -ffp-contract=off
+POLYBENCH_GCC_FP_CONTRACT_OFF
 static
 void kernel_bicg_StrictFP(int m, int n,
 		 DATA_TYPE POLYBENCH_2D(A,N,M,n,m),
@@ -125,12 +127,12 @@ void kernel_bicg_StrictFP(int m, int n,
 /* Return 0 when one of the elements of arrays A and B do not match within the
    allowed FP_ABSTOLERANCE.  Return 1 when all elements match.  */
 static int
-check_FP(int ny,
-         DATA_TYPE POLYBENCH_1D(A,NY,ny),
-         DATA_TYPE POLYBENCH_1D(B,NX,nx)) {
+check_FP(int n,
+         DATA_TYPE POLYBENCH_1D(A,N,n),
+         DATA_TYPE POLYBENCH_1D(B,M,m)) {
   int i;
   double AbsTolerance = FP_ABSTOLERANCE;
-  for (i = 0; i < _PB_NY; i++)
+  for (i = 0; i < _PB_N; i++)
     {
       double V1 = A[i];
       double V2 = B[i];
